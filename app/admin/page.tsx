@@ -60,7 +60,7 @@ export default function AdminDashboard() {
   const generateKeys = async () => {
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "ecc",
-      curve: "curve25519",
+      curve: "ed25519" as any,
       userIDs: [{ name: "CID Investigator", email: "cid@police.lk" }],
     });
     setGeneratedPubKey(publicKey);

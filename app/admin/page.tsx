@@ -86,7 +86,7 @@ function EvidenceMetadataPanel({
   );
 }
 
-function EvidenceLink({
+function EvidenceImage({
   storageId,
   loadingText,
   linkText,
@@ -104,14 +104,22 @@ function EvidenceLink({
   }
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="text-blue-400 hover:underline flex items-center"
-    >
-      📎 {linkText}
-    </a>
+    <div className="space-y-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={linkText}
+        className="max-h-80 w-full rounded-lg border border-slate-600 object-contain bg-black"
+      />
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-blue-400 hover:underline text-sm inline-flex items-center gap-1"
+      >
+        📎 {linkText}
+      </a>
+    </div>
   );
 }
 
@@ -129,7 +137,8 @@ function statusBadgeClass(status: string | undefined): string {
 export default function AdminDashboard() {
   const [language, setLanguage] = useState<Language>("si");
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedComplaintId, setSelectedComplaintId] =
+    useState<Id<"complaints"> | null>(null);
 
   const complaints = useQuery(api.complaints.getAllComplaints) || [];
   const updateComplaintStatus = useMutation(
@@ -181,6 +190,26 @@ export default function AdminDashboard() {
     }
     return encrypted.length > 48 ? `${encrypted.slice(0, 48)}…` : encrypted;
   };
+
+  const selectedComplaint = useMemo(
+    () => complaints.find((c) => c._id === selectedComplaintId) ?? null,
+    [complaints, selectedComplaintId],
+  );
+
+  useEffect(() => {
+    if (!selectedComplaintId) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedComplaintId(null);
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selectedComplaintId]);
 
   const filteredComplaints = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -437,11 +466,7 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 text-center">
                           <button
                             type="button"
-                            onClick={() =>
-                              setExpandedId(
-                                expandedId === comp._id ? null : comp._id,
-                              )
-                            }
+                            onClick={() => setSelectedComplaintId(comp._id)}
                             className="text-emerald-400 hover:text-emerald-300 font-semibold text-xs px-3 py-1.5 rounded-lg border border-emerald-500/40 hover:bg-emerald-500/10 transition-colors"
                           >
                             {t.viewDetails}
@@ -455,79 +480,104 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {filteredComplaints.map((comp) =>
-            expandedId === comp._id ? (
-              <div
-                key={`detail-${comp._id}`}
-                id={`complaint-${comp._id}`}
-                className="bg-slate-800 p-6 rounded-xl border border-emerald-500/30"
-              >
-                <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
-                  <span className="font-mono text-emerald-400 font-bold text-lg">
-                    {t.caseKeyPrefix} {comp.case_key}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {new Date(comp._creationTime).toLocaleString(
-                      language === "si" ? "si-LK" : "en-GB",
-                    )}
-                  </span>
-                </div>
+        {selectedComplaint && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="complaint-detail-title"
+            onClick={() => setSelectedComplaintId(null)}
+          >
+            <div
+              className="bg-slate-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-emerald-500/40 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 z-10 flex justify-between items-center gap-4 border-b border-slate-700 bg-slate-800 px-6 py-4">
+                <h2
+                  id="complaint-detail-title"
+                  className="font-mono text-emerald-400 font-bold text-lg"
+                >
+                  {t.caseKeyPrefix} {selectedComplaint.case_key}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setSelectedComplaintId(null)}
+                  className="text-slate-400 hover:text-white text-2xl leading-none px-2"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
 
-                <div className="mb-4">
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-slate-400">
+                  {new Date(selectedComplaint._creationTime).toLocaleString(
+                    language === "si" ? "si-LK" : "en-GB",
+                  )}
+                </p>
+
+                <div>
                   <h3 className="text-sm font-bold text-slate-400 mb-1">
                     {t.complaintDescriptionLabel}
                   </h3>
-                  {decryptedTexts[comp._id] ? (
+                  {decryptedTexts[selectedComplaint._id] ? (
                     <div
                       className={`p-4 rounded font-medium whitespace-pre-wrap ${
-                        decryptedTexts[comp._id].includes("⚠️")
+                        decryptedTexts[selectedComplaint._id].includes("⚠️")
                           ? "bg-red-950/50 text-red-400 border border-red-900"
                           : "bg-slate-900 text-green-400 border border-slate-700"
                       }`}
                     >
-                      {decryptedTexts[comp._id]}
+                      {decryptedTexts[selectedComplaint._id]}
                     </div>
                   ) : (
                     <div className="bg-slate-950 p-4 rounded text-slate-500 font-mono text-xs break-all border border-slate-700">
-                      {comp.description}
+                      {selectedComplaint.description}
                     </div>
                   )}
                 </div>
 
-                {comp.evidence_path && (
-                  <div className="mb-4 text-sm">
-                    <EvidenceLink
-                      storageId={comp.evidence_path}
+                {selectedComplaint.evidence_path && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-400 mb-2">
+                      {t.evidenceLinkText}
+                    </h3>
+                    <EvidenceImage
+                      storageId={selectedComplaint.evidence_path}
                       loadingText={t.evidenceLinkLoading}
                       linkText={t.evidenceLinkText}
                     />
                   </div>
                 )}
 
-                {comp.metadata && (
-                  <div className="mb-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                {selectedComplaint.metadata && (
+                  <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                     <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
                       <span>📍</span> ඡායාරූපයේ තොරතුරු (EXIF Metadata)
                     </h3>
-                    <EvidenceMetadataPanel metadata={comp.metadata} />
+                    <EvidenceMetadataPanel
+                      metadata={selectedComplaint.metadata}
+                    />
                   </div>
                 )}
 
-                {comp.reporter_reply && (
-                  <div className="mb-4 bg-emerald-900/30 p-4 rounded-lg border border-emerald-800/50">
+                {selectedComplaint.reporter_reply && (
+                  <div className="bg-emerald-900/30 p-4 rounded-lg border border-emerald-800/50">
                     <h3 className="text-xs font-bold text-emerald-400 mb-1 uppercase">
                       {t.reporterReplyLabel}
                     </h3>
                     <p className="text-emerald-100 text-sm">
-                      {comp.reporter_reply}
+                      {selectedComplaint.reporter_reply}
                     </p>
                   </div>
                 )}
 
-                {decryptedTexts[comp._id] &&
-                !decryptedTexts[comp._id].includes("⚠️") &&
-                !decryptedTexts[comp._id].includes("BEGIN PGP MESSAGE") ? (
-                  <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 mt-4">
+                {decryptedTexts[selectedComplaint._id] &&
+                !decryptedTexts[selectedComplaint._id].includes("⚠️") &&
+                !decryptedTexts[selectedComplaint._id].includes(
+                  "BEGIN PGP MESSAGE",
+                ) ? (
+                  <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
                     <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
                       <span className="text-blue-500">✍️</span>{" "}
                       {t.updateStatusTitle}
@@ -536,8 +586,8 @@ export default function AdminDashboard() {
                       onSubmit={(e) => {
                         e.preventDefault();
                         const form = e.currentTarget;
-                        handleUpdate(
-                          comp._id,
+                        void handleUpdate(
+                          selectedComplaint._id,
                           (form.elements.namedItem("status") as HTMLSelectElement)
                             .value,
                           (form.elements.namedItem("reply") as HTMLTextAreaElement)
@@ -548,7 +598,7 @@ export default function AdminDashboard() {
                     >
                       <select
                         name="status"
-                        defaultValue={comp.status ?? "Pending"}
+                        defaultValue={selectedComplaint.status ?? "Pending"}
                         className="bg-slate-800 text-white p-2 rounded w-full border border-slate-600 focus:border-blue-500 focus:outline-none"
                       >
                         <option value="Pending">{t.statusPending}</option>
@@ -557,7 +607,7 @@ export default function AdminDashboard() {
                       </select>
                       <textarea
                         name="reply"
-                        defaultValue={comp.investigator_reply || ""}
+                        defaultValue={selectedComplaint.investigator_reply || ""}
                         placeholder={t.replyPlaceholder}
                         className="w-full bg-slate-800 text-white p-2 rounded border border-slate-600 text-sm focus:border-blue-500 focus:outline-none"
                         rows={2}
@@ -571,15 +621,17 @@ export default function AdminDashboard() {
                     </form>
                   </div>
                 ) : (
-                  <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center mt-4">
+                  <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center">
                     <p className="text-xs text-red-400 font-medium">
                       🔒 {t.lockedMessage}
                     </p>
                   </div>
                 )}
               </div>
-            ) : null,
-          )}
+            </div>
+          </div>
+        )}
+
         </div>
 
         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">

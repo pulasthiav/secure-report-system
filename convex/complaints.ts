@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { evidenceMetadataValidator } from "./evidenceMetadata";
 
 // 1. අලුත් පැමිණිල්ලක් දාන්න
 export const createComplaint = mutation({
@@ -7,6 +8,7 @@ export const createComplaint = mutation({
     case_key: v.string(),
     description: v.string(),
     evidence_path: v.optional(v.string()),
+    metadata: v.optional(evidenceMetadataValidator),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("complaints", {
@@ -14,6 +16,7 @@ export const createComplaint = mutation({
       description: args.description,
       evidence_path: args.evidence_path,
       status: "Pending",
+      metadata: args.metadata,
     });
   },
 });

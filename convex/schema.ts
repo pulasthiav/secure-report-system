@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { evidenceMetadataValidator } from "./evidenceMetadata";
 
 export default defineSchema({
   complaints: defineTable({
@@ -9,5 +10,6 @@ export default defineSchema({
     status: v.optional(v.string()), // Pending, Investigating, Resolved
     investigator_reply: v.optional(v.string()),
     reporter_reply: v.optional(v.string()),
+    metadata: v.optional(evidenceMetadataValidator),
   }).index("by_case_key", ["case_key"]),
 });

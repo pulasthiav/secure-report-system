@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@supabase/supabase-js": "^2.105.4",
     "convex": "^1.39.1",
     "next": "16.2.6",
     "openpgp": "^6.3.0",

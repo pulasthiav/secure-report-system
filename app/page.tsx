@@ -22,7 +22,6 @@ export default function Home() {
     pgpText: string;
   } | null>(null);
 
-  // ─── Convex Mutations (Supabase වෙනුවට) ─────────────────────────────────
   const generateUploadUrl = useMutation(api.complaints.generateUploadUrl);
   const createComplaint = useMutation(api.complaints.createComplaint);
 
@@ -98,23 +97,13 @@ Return ONLY the redacted Singlish text. No explanation. No English translation.`
     );
 
     const data = await response.json();
-    if (!response.ok) {
-      const message =
-        typeof data?.error?.message === "string"
-          ? data.error.message
-          : "AI redaction request failed.";
-      throw new Error(message);
-    }
+    
+    const aiContent = data?.choices?.[0]?.message?.content;
+    const cleaned = aiContent ? aiContent.trim() : text.trim();
 
-    const cleaned = data?.choices?.[0]?.message?.content;
-    if (typeof cleaned !== "string" || !cleaned.trim()) {
-      throw new Error("AI redaction returned an unexpected empty response.");
-    }
-
-    const trimmed = cleaned.trim();
-    return trimmed
+    return cleaned
       .replace(/^Output:\s*/i, "")
-      .replace(/^"|"$|`/g, "")
+      .replace(/^"|"$/g, "")
       .trim();
   };
 

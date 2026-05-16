@@ -30,7 +30,6 @@ function EvidenceLink({ storageId }: { storageId: string }) {
 }
 
 export default function AdminDashboard() {
-  // Convex Real-time Query! (Supabase 'useEffect' වෙනුවට)
   const complaints = useQuery(api.complaints.getAllComplaints) || [];
   const updateComplaintStatus = useMutation(
     api.complaints.updateComplaintStatus,
@@ -61,7 +60,7 @@ export default function AdminDashboard() {
   const generateKeys = async () => {
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "ecc",
-      curve: "curve25519",
+      curve: "ed25519" as any,
       userIDs: [{ name: "CID Investigator", email: "cid@police.lk" }],
     });
     setGeneratedPubKey(publicKey);

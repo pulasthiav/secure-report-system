@@ -128,6 +128,8 @@ export const translations = {
       submitting: "Submitting...",
       statusPiiRedacting: "AI is checking for personal data (PII)...",
       statusReadingExif: "Reading photo metadata...",
+      statusGeolocationFallback:
+        "GPS missing in photo, fetching live location fallback...",
       statusStrippingMetadata: "Stripping metadata from evidence file...",
       statusUploadingEvidence: "Securely storing evidence...",
       statusEncrypting: "Encrypting data with PGP...",
@@ -302,6 +304,8 @@ export const translations = {
       statusPiiRedacting:
         "AI මගින් පෞද්ගලික දත්ත (PII) පරික්ෂා කරමින් පවතී...",
       statusReadingExif: "ඡායාරූපයේ Metadata කියවමින් පවතී...",
+      statusGeolocationFallback:
+        "ඡායාරූපයේ GPS නොමැත, සජීවී ස්ථානය ලබාගනිමින් පවතී...",
       statusStrippingMetadata:
         "සාක්ෂි ගොනුවේ Metadata මකා දමමින් පවතී...",
       statusUploadingEvidence: "ආරක්ෂිතව සාක්ෂි ගබඩා කරමින් පවතී...",

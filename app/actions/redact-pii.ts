@@ -11,25 +11,46 @@ NEVER translate. ONLY replace confirmed PII with "[REDACTED]".
 
 === STRICT PII DEFINITION (ONLY REDACT THESE) ===
 Redact ONLY actual Personally Identifiable Information about the REPORTER or WITNESSES:
-1. Real person names (English or Singlish transliterations used as personal names, e.g. "Ashan", "Nimal", "Kamal", "Sarah").
-2. Phone numbers (any format).
-3. Email addresses.
-4. National ID / NIC numbers.
-5. Reporter-specific age, home address, and workplace when clearly identifying the reporter.
+1. Real person names (English or Singlish transliterations used as personal names, e.g. "Ashan", "Nimal", "Kamal", "Sarah", "ashan", "kasun", "nimal").
+2. Actual phone number digits (e.g. "0771234567", "0767763425") — NOT the words "phone", "phone number", or "ෆෝන් නම්බර්ස්".
+3. Email addresses (actual addresses, not the word "email").
+4. National ID / NIC numbers (actual ID values, not the word "NIC" or "ජාතික හැඳුනුම්පත").
+5. Reporter-specific age numbers, home addresses, and workplace names when they are specific identifying values (not generic labels).
+
+=== DATA vs. LABEL DISTINCTION (CRITICAL) ===
+NEVER redact generic nouns, categories, or descriptive labels. These describe TYPES of information — they are NOT PII values themselves.
+- English labels: "phone numbers", "my name", "address", "age", "officer", "someone", "a person", "witness"
+- Sinhala labels: "ෆෝන් නම්බර්ස්", "නම් ගම්", "මනුස්සයා" (man/person), "නිලධාරියා" (officer), "කෙනෙක්" (someone), "වයස", "ලිපිනය", "දුරකථන අංකය"
+- Singlish labels: "phone num", "mage nama", "wayasa", "address ek"
+
+Only redact the ACTUAL specific value when it appears:
+- Label "phone numbers" / "ෆෝන් නම්බර්ස්" → KEEP the label; redact only digits like "0771234567" if present nearby.
+- Label "මනුස්සයා" / "a person" → NEVER redact; it is not someone's name.
+- Name "ashan" after "mama" in self-ID context → redact "ashan" only.
 
 === DO NOT REDACT (STRICT NEGATIVE RULES) ===
 DO NOT redact common Sinhala/Singlish verbs, nouns, pronouns, or adjectives. These are NOT names and must be left EXACTLY as written:
-- Pronouns & particles: mama, mage, mn, mn, mokada, eka, ekak, maga
-- Verbs & actions: dakka, giya, yanne, kiyanne, balanna, pennawa, denawa, gatta, panna, karanna, krnawa, horakam
-- Descriptors & common nouns: pare, loku, podi, horu, badu, wanchawak, wanchawak, salli, bank, station, wayasa
-- Crime narrative words: horakam, wanchawa, wanchawak, chori, theft, stealing
+- Pronouns & particles: mama, mage, mn, mokada, eka, ekak, maga
+- Verbs & actions: dakka, giya, yanne, kiyanne, balanna, pennawa, denawa, gatta, panna, karanna, krnawa, horakam, දැක්කා, කියනවා, වෙනවා
+- Descriptors & common nouns: pare, loku, podi, horu, badu, wanchawak, salli, bank, station, wayasa, පාරේ, වංචාව
+- Generic people/role words: මනුස්සයා, නිලධාරියා, කෙනෙක්, හොරා, යාළුවා (when used generically, not as a proper name)
+- Crime narrative words: horakam, wanchawa, chori, theft, stealing
 - THE ACCUSED / CRIMINAL: Never redact the person accused of the crime (e.g. Mr. Smith, Kalindu, Siridasa).
 - Crime locations, victims (unless they are the reporter identifying themselves), and crime descriptions.
 
-If a word is a normal conversational word in context, it is NOT PII — leave it unchanged.
+If a word is a normal conversational word, label, or category in context, it is NOT PII — leave it unchanged.
+
+=== STRICT EVALUATION ORDER (APPLY TO EVERY CANDIDATE WORD) ===
+Before replacing ANY word with "[REDACTED]", follow these steps in order:
+- Step 1: Identify if the word is an actual unique piece of personal data (a specific person's name, phone digits, email, NIC number, specific home address).
+- Step 2: Confirm it is NOT a structural, conversational, or label word in Sinhala/Singlish/English (verb, generic noun, category label, role word).
+- Step 3: Apply "[REDACTED]" ONLY if it passes BOTH Step 1 and Step 2.
+If it fails either step → DO NOT redact.
 
 === CONTEXTUAL NAME DETECTION ===
 - Look for reporter names after self-identification phrases: "mama [name]", "mage nama [name]", "my name is [name]", "I am [name]".
+- When you see trigger phrases like "mama [word]" or "වැඩ කරන [word]" or "with [word]", verify that [word] is an actual PROPER NAME of a person (e.g. "ashan", "nimal").
+- If [word] is a common noun (e.g. "මනුස්සයා", "කෙනෙක්", "නිලධාරියා"), a verb (e.g. "දැක්කා", "dakka", "giya"), or a label (e.g. "ෆෝන් නම්බර්ස්"), DO NOT redact it.
 - BEFORE redacting a word as a name, verify it is actually a person's name — not a verb or common word.
   - "mama dakka" → "dakka" means "I saw" — DO NOT redact "dakka".
   - "mama giya" → "giya" means "went" — DO NOT redact "giya".
@@ -37,9 +58,10 @@ If a word is a normal conversational word in context, it is NOT PII — leave it
   - "loku wanchawak" → means "big fraud" — DO NOT redact "loku" or "wanchawak".
   - "mama ashan" → "ashan" is a personal name — redact "ashan" only.
 - Words immediately after "mama" are often verbs (dakka, kiyanne, yanne), NOT names. Do not assume every word after "mama" is a name.
+- Lowercase Singlish names (ashan, kasun, nimal) in self-identification context MUST still be redacted — they are real names, not common words.
 
 === GOLDEN RULE (SAFE FALLBACK) ===
-If you are unsure whether a word is a person's name or just a regular conversational word, DO NOT redact it.
+If you are unsure whether a word is a person's name, a label, or a regular conversational word, DO NOT redact it.
 Under-redaction of ambiguous words is strongly preferred over over-redacting common text.
 When in doubt, leave the word unchanged.
 
@@ -74,6 +96,16 @@ Mama dakka pare loku wanchawakak wenne. mama kiyanne mokuth ne.
 මම දැක්කා පාරේ ලොකු වංචාවක් වෙනවා. හොරු බැංකුවෙන් සල්ලි ගත්තා.
 [Sinhala Output]
 මම දැක්කා පාරේ ලොකු වංචාවක් වෙනවා. හොරු බැංකුවෙන් සල්ලි ගත්තා.
+
+[Sinhala Input]
+මම දැක්කා මනුස්සයා බැංකුවේ ෆෝන් නම්බර්ස් ලිස්ට් එකක් හොරකම් කරනවා.
+[Sinhala Output]
+මම දැක්කා මනුස්සයා බැංකුවේ ෆෝන් නම්බර්ස් ලිස්ට් එකක් හොරකම් කරනවා.
+
+[Sinhala Input]
+මගේ ෆෝන් නම්බර් එක 0771234567. නම් ගම් ලිස්ට් එකක් හොරකම් කළා.
+[Sinhala Output]
+මගේ ෆෝන් නම්බර් එක [REDACTED]. නම් ගම් ලිස්ට් එකක් හොරකම් කළා.
 
 FINAL INSTRUCTION: OUTPUT ONLY THE REDACTED TEXT. MATCH THE INPUT LANGUAGE EXACTLY. NO EXTRA WORDS. NO EXPLANATIONS.`;
 

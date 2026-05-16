@@ -49,10 +49,18 @@ function wrapPgpText(text: string, maxCharsPerLine = 88): string {
   return lines.join("\n");
 }
 
-export async function generateReceiptPdf(
+function waitForPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function buildReceiptHtml(
   lang: Language,
   data: ReceiptPdfData,
-): Promise<void> {
+): string {
   const r = translations[lang].receipt;
   const category = getLocalizedFraudCategory(data.categoryKey, lang);
   const statusLabel = getReceiptStatusLabel(lang, data.status ?? "Pending");
@@ -61,12 +69,7 @@ export async function generateReceiptPdf(
     { dateStyle: "long", timeStyle: "short" },
   );
 
-  const container = document.createElement("div");
-  container.setAttribute("data-receipt-pdf", "true");
-  container.style.cssText =
-    "position:fixed;left:-10000px;top:0;width:794px;min-height:1123px;padding:48px 56px;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;background:#ffffff;color:#0f172a;";
-
-  container.innerHTML = `
+  return `
     <div style="border-bottom:3px solid #059669;padding-bottom:20px;margin-bottom:28px;">
       <p style="margin:0;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#059669;font-weight:700;">Secure Report System</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#0f172a;line-height:1.3;">${escapeHtml(r.receiptTitle)}</h1>
@@ -103,7 +106,7 @@ export async function generateReceiptPdf(
 
     <div style="margin-bottom:28px;">
       <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(r.pgpEncryptedLabel)}</p>
-      <pre style="margin:0;padding:14px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:8px;font-size:8px;line-height:1.4;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,monospace;max-height:320px;overflow:hidden;">${escapeHtml(wrapPgpText(data.pgpText))}</pre>
+      <pre style="margin:0;padding:14px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:8px;font-size:7px;line-height:1.35;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,monospace;">${escapeHtml(wrapPgpText(data.pgpText))}</pre>
     </div>
 
     <div style="border-top:1px solid #e2e8f0;padding-top:16px;font-size:10px;color:#64748b;line-height:1.5;">
@@ -111,17 +114,65 @@ export async function generateReceiptPdf(
       <p style="margin:0;">${escapeHtml(r.receiptFooterRights)}</p>
     </div>
   `;
+}
 
+export async function generateReceiptPdf(
+  lang: Language,
+  data: ReceiptPdfData,
+): Promise<void> {
+  const container = document.createElement("div");
+  container.setAttribute("data-receipt-pdf", "true");
+  container.style.cssText = [
+    "position:fixed",
+    "left:0",
+    "top:0",
+    "width:794px",
+    "max-width:794px",
+    "padding:48px 56px",
+    "box-sizing:border-box",
+    "font-family:'Segoe UI',system-ui,sans-serif",
+    "background:#ffffff",
+    "color:#0f172a",
+    "z-index:2147483647",
+    "pointer-events:none",
+  ].join(";");
+
+  container.innerHTML = buildReceiptHtml(lang, data);
   document.body.appendChild(container);
 
   try {
-    const html2pdf = (await import("html2pdf.js")).default;
+    await waitForPaint();
+
+    const width = container.scrollWidth;
+    const height = container.scrollHeight;
+
+    if (height < 10) {
+      throw new Error("Receipt layout has zero height before PDF capture");
+    }
+
+    const html2pdfModule = await import("html2pdf.js");
+    const html2pdf =
+      typeof html2pdfModule.default === "function"
+        ? html2pdfModule.default
+        : (html2pdfModule as unknown as typeof html2pdfModule.default);
+
     await html2pdf()
       .set({
-        margin: [12, 12, 12, 12],
+        margin: [10, 10, 10, 10],
         filename: `SecureReport_Receipt_${data.caseKey}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          width,
+          height,
+          windowWidth: width,
+          windowHeight: height,
+          scrollX: 0,
+          scrollY: 0,
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       })
       .from(container)

@@ -78,6 +78,8 @@ export const translations = {
       updateButton: "Save update",
       lockedMessage:
         "Unlock complaints with your Private Key above before sending messages or updating status.",
+      lockedEvidenceMessage:
+        "Please unlock complaints with your Private Key to view evidence and metadata.",
       caseKeyPrefix: "Key:",
       viewDetails: "View",
       auditLogEmpty: "No audit entries recorded yet.",
@@ -250,6 +252,8 @@ export const translations = {
       updateButton: "යාවත්කාලීන කරන්න",
       lockedMessage:
         "පණිවිඩ යැවීමට සහ තත්ත්වය යාවත්කාලීන කිරීමට ප්‍රථම, ඉහළින් පෞද්ගලික යතුර ලබාදී පැමිණිල්ල අගුළු හරින්න.",
+      lockedEvidenceMessage:
+        "සාක්ෂි සහ metadata බැලීමට පෞද්ගලික යතුර ලබාදී පැමිණිල්ල අගුළු හරින්න.",
       caseKeyPrefix: "අංකය:",
       viewDetails: "බලන්න",
       auditLogEmpty: "තවම පරීක්ෂණ සටහන් කිසිවක් නොමැත.",

@@ -13,6 +13,13 @@ WHAT TO REDACT:
 - Reporter's name & Witness names.
 - Reporter's age, phone number, address, and workplace.
 
+SINGLISH / SINHALA NAME RULES (MANDATORY):
+- Aggressively redact reporter/witness given names in Singlish and Sinhala, even when lowercase or without spaces (e.g., "ashan", "kasun", "nimal", "ashan mn").
+- If the text starts with "mama [name]" or "mage nama [name]" or "my name is [name]", YOU MUST redact the [name] immediately after that phrase.
+- If the text contains "mama dakka", "mama kiyanne", "mama yanne" — redact reporter names that appear BEFORE or right AFTER "mama" when they identify the reporter (not the accused).
+- Common Singlish reporter patterns: "mama <name>", "mage nama <name>", "mama <name> mage", "<name> kiyala", "with <name>".
+- When unsure whether a word is a reporter name vs accused, redact only if it appears in a self-identification context (mama/mage nama/my name/I am).
+
 WHAT TO KEEP (CRITICAL - DO NOT REDACT):
 - THE ACCUSED/CRIMINAL: Never redact the person committing the crime (e.g., Mr. Smith, Kalindu, Siridasa).
 - The victim, the crime location, and the crime description.
@@ -28,6 +35,11 @@ My name is [REDACTED], I am [REDACTED] years old and my phone is [REDACTED]. I s
 mama ashan mage wayasa 20 mag phone num ek 0767763425. mama dakka kalindu maharagama boc eken salli horakam krnawa
 [Singlish Output]
 mama [REDACTED] mage wayasa [REDACTED] mag phone num ek [REDACTED]. mama dakka kalindu maharagama boc eken salli horakam krnawa
+
+[Singlish Input]
+Mama ashan mn dakka siridasa bank eken salli horakam krnawa
+[Singlish Output]
+Mama [REDACTED] mn dakka siridasa bank eken salli horakam krnawa
 
 [Sinhala Input]
 මම කසුන්, වයස 25. මගේ යාළුවා නිමල් එක්ක ඉන්නකොට දැක්කා සිරිදාස බැංකුව ළඟදි සල්ලි හොරකම් කරනවා.
@@ -52,7 +64,9 @@ export async function redactPIIWithAI(text: string): Promise<string> {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.error("OPENAI_API_KEY is not configured on the server");
+    console.error(
+      "[redactPIIWithAI] OPENAI_API_KEY is not configured on the server. Returning original text.",
+    );
     return trimmed;
   }
 
@@ -75,15 +89,37 @@ export async function redactPIIWithAI(text: string): Promise<string> {
     });
 
     if (!response.ok) {
-      console.error("OpenAI server action fetch failed:", response.status);
+      const errorBody = await response.text().catch(() => "(no response body)");
+      console.error(
+        "[redactPIIWithAI] OpenAI API request failed:",
+        {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorBody,
+        },
+      );
       return trimmed;
     }
 
     const data = await response.json();
     const aiContent = data?.choices?.[0]?.message?.content;
-    return aiContent ? cleanRedactedOutput(aiContent, trimmed) : trimmed;
+
+    if (!aiContent) {
+      console.error(
+        "[redactPIIWithAI] OpenAI returned an empty completion. Full response:",
+        JSON.stringify(data),
+      );
+      return trimmed;
+    }
+
+    return cleanRedactedOutput(aiContent, trimmed);
   } catch (error) {
-    console.error("OpenAI Server Action Error:", error);
+    console.error("[redactPIIWithAI] Unexpected error during PII redaction:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      cause: error instanceof Error ? error.cause : undefined,
+    });
     return trimmed;
   }
 }

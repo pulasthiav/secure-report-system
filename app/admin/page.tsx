@@ -1,21 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as openpgp from "openpgp";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { classifyFraudCategory } from "../../lib/classifyFraudCategory";
+import {
+  getAdminStatusLabel,
+  getLocalizedFraudCategory,
+  translations,
+  type Language,
+} from "../../translations";
 
-// සාක්ෂි (Evidence) වල URL එක ගන්න හදපු පොඩි Component එකක්
-function EvidenceLink({ storageId }: { storageId: string }) {
+function EvidenceLink({
+  storageId,
+  loadingText,
+  linkText,
+}: {
+  storageId: string;
+  loadingText: string;
+  linkText: string;
+}) {
   const url = useQuery(api.complaints.getImageUrl, {
     storageId: storageId as Id<"_storage">,
   });
 
-  if (!url)
-    return (
-      <span className="text-slate-500 text-sm">ලිංක් එක සූදානම් කරමින්...</span>
-    );
+  if (!url) {
+    return <span className="text-slate-500 text-sm">{loadingText}</span>;
+  }
 
   return (
     <a
@@ -24,39 +38,97 @@ function EvidenceLink({ storageId }: { storageId: string }) {
       rel="noreferrer"
       className="text-blue-400 hover:underline flex items-center"
     >
-      📎 සාක්ෂි ගොනුව (Evidence) බලන්න
+      📎 {linkText}
     </a>
   );
 }
 
+function statusBadgeClass(status: string | undefined): string {
+  switch (status) {
+    case "Resolved":
+      return "bg-emerald-500/20 text-emerald-400 border-emerald-500/40";
+    case "Investigating":
+      return "bg-amber-500/20 text-amber-400 border-amber-500/40";
+    default:
+      return "bg-slate-500/20 text-slate-300 border-slate-500/40";
+  }
+}
+
 export default function AdminDashboard() {
+  const [language, setLanguage] = useState<Language>("si");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const complaints = useQuery(api.complaints.getAllComplaints) || [];
   const updateComplaintStatus = useMutation(
     api.complaints.updateComplaintStatus,
   );
 
   const [privateKeyInput, setPrivateKeyInput] = useState("");
-  const [decryptedTexts, setDecryptedTexts] = useState<any>({});
+  const [decryptedTexts, setDecryptedTexts] = useState<Record<string, string>>(
+    {},
+  );
   const [error, setError] = useState<string | null>(null);
-
-  // යතුරු නිර්මාණය සඳහා
   const [generatedPubKey, setGeneratedPubKey] = useState("");
   const [generatedPrivKey, setGeneratedPrivKey] = useState("");
-
-  // Toast Notification සඳහා
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error";
   } | null>(null);
 
-  const showToast = (message: string, type: "success" | "error") => {
-    setToast({ message, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 3000);
+  const t = translations[language].admin;
+
+  useEffect(() => {
+    if (localStorage.getItem("lang") === "en") {
+      setLanguage("en");
+    }
+  }, []);
+
+  const handleLanguageChange = (newLang: Language) => {
+    localStorage.setItem("lang", newLang);
+    window.location.reload();
   };
 
-  // යතුරු යුගලයක් නිර්මාණය කිරීම
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const getComplaintCategory = (compId: string, fallbackText: string) => {
+    const decrypted = decryptedTexts[compId];
+    if (decrypted && !decrypted.includes("⚠️")) {
+      return classifyFraudCategory(decrypted);
+    }
+    return classifyFraudCategory(fallbackText);
+  };
+
+  const getDescriptionPreview = (compId: string, encrypted: string) => {
+    const decrypted = decryptedTexts[compId];
+    if (decrypted && !decrypted.includes("⚠️")) {
+      return decrypted.length > 80 ? `${decrypted.slice(0, 80)}…` : decrypted;
+    }
+    return encrypted.length > 48 ? `${encrypted.slice(0, 48)}…` : encrypted;
+  };
+
+  const filteredComplaints = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return complaints;
+
+    return complaints.filter((comp) => {
+      const decrypted = decryptedTexts[comp._id]?.toLowerCase() ?? "";
+      const category = getLocalizedFraudCategory(
+        getComplaintCategory(comp._id, comp.description),
+        language,
+      ).toLowerCase();
+      return (
+        comp.case_key.toLowerCase().includes(q) ||
+        decrypted.includes(q) ||
+        category.includes(q) ||
+        (comp.status ?? "pending").toLowerCase().includes(q)
+      );
+    });
+  }, [complaints, searchQuery, decryptedTexts, language]);
+
   const generateKeys = async () => {
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "ecc",
@@ -65,10 +137,9 @@ export default function AdminDashboard() {
     });
     setGeneratedPubKey(publicKey);
     setGeneratedPrivKey(privateKey);
-    showToast("නව යතුරු යුගලයක් සාර්ථකව නිර්මාණය විය!", "success");
+    showToast(t.toastKeysGenerated, "success");
   };
 
-  // Private Key එක භාවිතයෙන් Decrypt කිරීම
   const handleDecrypt = async () => {
     setError(null);
     try {
@@ -82,7 +153,7 @@ export default function AdminDashboard() {
         armoredKey: keyString,
       });
 
-      const newDecrypted: any = {};
+      const newDecrypted: Record<string, string> = {};
       let successCount = 0;
 
       for (const comp of complaints) {
@@ -95,11 +166,10 @@ export default function AdminDashboard() {
               message,
               decryptionKeys: privKey,
             });
-            newDecrypted[comp._id] = decrypted;
+            newDecrypted[comp._id] = decrypted as string;
             successCount++;
-          } catch (innerErr) {
-            newDecrypted[comp._id] =
-              "⚠️ පරණ යතුරකින් ලොක් කර ඇත (මෙම යතුරෙන් අරින්න බැහැ)";
+          } catch {
+            newDecrypted[comp._id] = `⚠️ ${t.errorDecryptOldKey}`;
           }
         } else {
           newDecrypted[comp._id] = comp.description;
@@ -109,21 +179,16 @@ export default function AdminDashboard() {
       setDecryptedTexts(newDecrypted);
 
       if (successCount === 0 && complaints.length > 0) {
-        setError(
-          "යතුර හරි! හැබැයි මේ යතුරෙන් අරින්න පුළුවන් අලුත් පැමිණිලි මුකුත් නෑ.",
-        );
+        setError(t.errorWrongKeyNoMatch);
       } else {
-        showToast("පැමිණිලි සාර්ථකව Decrypt කරන ලදී!", "success");
+        showToast(t.toastDecryptSuccess, "success");
       }
     } catch (err) {
       console.error("Key Error:", err);
-      setError(
-        "Private Key එකේ අවුලක්! කරුණාකර අකුරු අඩුවක් නැතුව හරියටම දාන්න.",
-      );
+      setError(t.errorPrivateKeyInvalid);
     }
   };
 
-  // තත්ත්වය සහ රිප්ලයි එක යාවත්කාලීන කිරීම (Convex Mutation)
   const handleUpdate = async (
     id: Id<"complaints">,
     status: string,
@@ -135,16 +200,18 @@ export default function AdminDashboard() {
         status,
         investigator_reply: reply,
       });
-      showToast("යාවත්කාලීන කිරීම සාර්ථකයි!", "success");
-    } catch (err: any) {
-      showToast("Update වුණේ නැහැ! Error: " + err.message, "error");
+      showToast(t.toastUpdateSuccess, "success");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+      showToast(`${t.toastUpdateError} ${message}`, "error");
       console.error(err);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 p-8 relative">
-      {/* Toast Notification */}
+      <LanguageSwitcher language={language} onChange={handleLanguageChange} />
+
       {toast && (
         <div className="fixed top-6 right-6 z-50 animate-fade-in transition-all duration-300">
           <div
@@ -168,31 +235,29 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-8 pt-12">
         <h1 className="text-3xl font-bold text-white border-b border-slate-700 pb-4">
-          🛡️ විමර්ශක පුවරුව (CID Dashboard)
+          🛡️ {t.title}
         </h1>
 
-        {/* --- Key Generator Section --- */}
         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
           <h2 className="text-xl font-bold text-blue-400 mb-2">
-            1. ආරක්ෂිත යතුරු නිර්මාණය (Key Generator)
+            {t.keyGeneratorTitle}
           </h2>
-          <p className="text-sm text-slate-400 mb-4">
-            පද්ධතියට අලුත් නම් පමණක් මෙතැනින් Public සහ Private යතුරු සාදාගන්න.
-          </p>
+          <p className="text-sm text-slate-400 mb-4">{t.keyGeneratorDesc}</p>
           <button
-            onClick={generateKeys}
+            type="button"
+            onClick={() => void generateKeys()}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold transition-colors"
           >
-            නව යතුරු නිර්මාණය කරන්න
+            {t.generateKeysButton}
           </button>
 
           {generatedPubKey && (
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-green-400 font-bold mb-1">
-                  Public Key (Website එකට දාන්න):
+                  {t.publicKeyLabel}
                 </label>
                 <textarea
                   readOnly
@@ -202,7 +267,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <label className="block text-red-400 font-bold mb-1">
-                  Private Key (ඔබ ළඟ තබාගන්න):
+                  {t.privateKeyLabel}
                 </label>
                 <textarea
                   readOnly
@@ -214,151 +279,231 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* --- Decryption Section --- */}
         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
           <h2 className="text-xl font-bold text-emerald-400 mb-2">
-            2. පැමිණිලි කියවීම (Decryption)
+            {t.decryptTitle}
           </h2>
-          <p className="text-sm text-slate-400 mb-4">
-            ලොක් කර ඇති පැමිණිලි කියවීම සඳහා ඔබගේ Private Key එක පහතින් ඇතුළත්
-            කරන්න.
-          </p>
+          <p className="text-sm text-slate-400 mb-4">{t.decryptDesc}</p>
           <textarea
             value={privateKeyInput}
             onChange={(e) => setPrivateKeyInput(e.target.value)}
             className="w-full h-24 bg-slate-950 border border-slate-600 text-slate-300 p-3 rounded mb-4 font-mono text-xs focus:border-emerald-500 focus:outline-none"
-            placeholder="ඔබගේ Private Key එක මෙතැන අලවන්න..."
+            placeholder={t.privateKeyPlaceholder}
           />
           <button
-            onClick={handleDecrypt}
+            type="button"
+            onClick={() => void handleDecrypt()}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded font-bold w-full transition-colors"
           >
-            🔓 Unlock & Decrypt Complaints
+            🔓 {t.decryptButton}
           </button>
           {error && (
             <p className="text-red-400 mt-3 text-sm font-bold">{error}</p>
           )}
         </div>
 
-        {/* --- Complaints List --- */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-white mb-4">
-            ලැබී ඇති පැමිණිලි
-          </h2>
-          {complaints.length === 0 && (
-            <p className="text-slate-500">තාමත් පැමිණිලි කිසිවක් ලැබී නොමැත.</p>
-          )}
-          {complaints.map((comp) => (
-            <div
-              key={comp._id}
-              className="bg-slate-800 p-6 rounded-xl border border-slate-700"
-            >
-              <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
-                <span className="font-mono text-emerald-400 font-bold text-lg">
-                  Key: {comp.case_key}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {new Date(comp._creationTime).toLocaleString()}
-                </span>
-              </div>
+          <h2 className="text-xl font-bold text-white">{t.complaintsSectionTitle}</h2>
 
-              <div className="mb-4">
-                <h3 className="text-sm font-bold text-slate-400 mb-1">
-                  පැමිණිල්ලේ විස්තරය:
-                </h3>
-                {decryptedTexts[comp._id] ? (
-                  <div
-                    className={`p-4 rounded font-medium whitespace-pre-wrap ${
-                      decryptedTexts[comp._id].includes("⚠️")
-                        ? "bg-red-950/50 text-red-400 border border-red-900"
-                        : "bg-slate-900 text-green-400 border border-slate-700"
-                    }`}
-                  >
-                    {decryptedTexts[comp._id]}
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.searchPlaceholder}
+            className="w-full bg-slate-950 border border-slate-600 text-slate-200 px-4 py-3 rounded-xl text-sm focus:border-emerald-500 focus:outline-none placeholder:text-slate-500"
+          />
+
+          {complaints.length === 0 && (
+            <p className="text-slate-500">{t.noComplaints}</p>
+          )}
+
+          {complaints.length > 0 && filteredComplaints.length === 0 && (
+            <p className="text-slate-500">{t.noSearchResults}</p>
+          )}
+
+          {filteredComplaints.length > 0 && (
+            <div className="overflow-x-auto rounded-xl border border-slate-700">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-800 text-slate-300 uppercase text-xs tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">{t.colComplaintId}</th>
+                    <th className="px-4 py-3 font-bold">{t.colDescription}</th>
+                    <th className="px-4 py-3 font-bold">{t.colCategory}</th>
+                    <th className="px-4 py-3 font-bold">{t.colStatus}</th>
+                    <th className="px-4 py-3 font-bold text-center">
+                      {t.colActions}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700 bg-slate-900/50">
+                  {filteredComplaints.map((comp) => {
+                    const categoryKey = getComplaintCategory(
+                      comp._id,
+                      comp.description,
+                    );
+                    return (
+                      <tr
+                        key={comp._id}
+                        className="hover:bg-slate-800/60 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-mono text-emerald-400 font-bold">
+                          {comp.case_key}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 max-w-xs truncate">
+                          {getDescriptionPreview(comp._id, comp.description)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-300">
+                          {getLocalizedFraudCategory(categoryKey, language)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold border ${statusBadgeClass(comp.status)}`}
+                          >
+                            {getAdminStatusLabel(comp.status, language)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedId(
+                                expandedId === comp._id ? null : comp._id,
+                              )
+                            }
+                            className="text-emerald-400 hover:text-emerald-300 font-semibold text-xs px-3 py-1.5 rounded-lg border border-emerald-500/40 hover:bg-emerald-500/10 transition-colors"
+                          >
+                            {t.viewDetails}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {filteredComplaints.map((comp) =>
+            expandedId === comp._id ? (
+              <div
+                key={`detail-${comp._id}`}
+                id={`complaint-${comp._id}`}
+                className="bg-slate-800 p-6 rounded-xl border border-emerald-500/30"
+              >
+                <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                  <span className="font-mono text-emerald-400 font-bold text-lg">
+                    {t.caseKeyPrefix} {comp.case_key}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {new Date(comp._creationTime).toLocaleString(
+                      language === "si" ? "si-LK" : "en-GB",
+                    )}
+                  </span>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="text-sm font-bold text-slate-400 mb-1">
+                    {t.complaintDescriptionLabel}
+                  </h3>
+                  {decryptedTexts[comp._id] ? (
+                    <div
+                      className={`p-4 rounded font-medium whitespace-pre-wrap ${
+                        decryptedTexts[comp._id].includes("⚠️")
+                          ? "bg-red-950/50 text-red-400 border border-red-900"
+                          : "bg-slate-900 text-green-400 border border-slate-700"
+                      }`}
+                    >
+                      {decryptedTexts[comp._id]}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-950 p-4 rounded text-slate-500 font-mono text-xs break-all border border-slate-700">
+                      {comp.description}
+                    </div>
+                  )}
+                </div>
+
+                {comp.evidence_path && (
+                  <div className="mb-4 text-sm">
+                    <EvidenceLink
+                      storageId={comp.evidence_path}
+                      loadingText={t.evidenceLinkLoading}
+                      linkText={t.evidenceLinkText}
+                    />
+                  </div>
+                )}
+
+                {comp.reporter_reply && (
+                  <div className="mb-4 bg-emerald-900/30 p-4 rounded-lg border border-emerald-800/50">
+                    <h3 className="text-xs font-bold text-emerald-400 mb-1 uppercase">
+                      {t.reporterReplyLabel}
+                    </h3>
+                    <p className="text-emerald-100 text-sm">
+                      {comp.reporter_reply}
+                    </p>
+                  </div>
+                )}
+
+                {decryptedTexts[comp._id] &&
+                !decryptedTexts[comp._id].includes("⚠️") &&
+                !decryptedTexts[comp._id].includes("BEGIN PGP MESSAGE") ? (
+                  <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 mt-4">
+                    <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
+                      <span className="text-blue-500">✍️</span>{" "}
+                      {t.updateStatusTitle}
+                    </h3>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        handleUpdate(
+                          comp._id,
+                          (form.elements.namedItem("status") as HTMLSelectElement)
+                            .value,
+                          (form.elements.namedItem("reply") as HTMLTextAreaElement)
+                            .value,
+                        );
+                      }}
+                      className="space-y-3"
+                    >
+                      <select
+                        name="status"
+                        defaultValue={comp.status ?? "Pending"}
+                        className="bg-slate-800 text-white p-2 rounded w-full border border-slate-600 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="Pending">{t.statusPending}</option>
+                        <option value="Investigating">{t.statusInReview}</option>
+                        <option value="Resolved">{t.statusResolved}</option>
+                      </select>
+                      <textarea
+                        name="reply"
+                        defaultValue={comp.investigator_reply || ""}
+                        placeholder={t.replyPlaceholder}
+                        className="w-full bg-slate-800 text-white p-2 rounded border border-slate-600 text-sm focus:border-blue-500 focus:outline-none"
+                        rows={2}
+                      />
+                      <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold transition-colors w-full"
+                      >
+                        {t.updateButton}
+                      </button>
+                    </form>
                   </div>
                 ) : (
-                  <div className="bg-slate-950 p-4 rounded text-slate-500 font-mono text-xs break-all border border-slate-700">
-                    {comp.description}
+                  <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center mt-4">
+                    <p className="text-xs text-red-400 font-medium">
+                      🔒 {t.lockedMessage}
+                    </p>
                   </div>
                 )}
               </div>
+            ) : null,
+          )}
+        </div>
 
-              {comp.evidence_path && (
-                <div className="mb-4 text-sm">
-                  <EvidenceLink storageId={comp.evidence_path} />
-                </div>
-              )}
-
-              {comp.reporter_reply && (
-                <div className="mb-4 bg-emerald-900/30 p-4 rounded-lg border border-emerald-800/50">
-                  <h3 className="text-xs font-bold text-emerald-400 mb-1 uppercase">
-                    පැමිණිලිකරුගේ නව පිළිතුර:
-                  </h3>
-                  <p className="text-emerald-100 text-sm">
-                    {comp.reporter_reply}
-                  </p>
-                </div>
-              )}
-
-              {/* Status Update Form - Condition එකක් සහිතව */}
-              {decryptedTexts[comp._id] &&
-              !decryptedTexts[comp._id].includes("⚠️") &&
-              !decryptedTexts[comp._id].includes("BEGIN PGP MESSAGE") ? (
-                <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 animate-fade-in mt-4">
-                  <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
-                    <span className="text-blue-500">✍️</span> තත්ත්වය යාවත්කාලීන
-                    කිරීම (Update Status)
-                  </h3>
-                  <form
-                    onSubmit={(e: any) => {
-                      e.preventDefault();
-                      handleUpdate(
-                        comp._id,
-                        e.target.status.value,
-                        e.target.reply.value,
-                      );
-                    }}
-                    className="space-y-3"
-                  >
-                    <select
-                      name="status"
-                      defaultValue={comp.status}
-                      className="bg-slate-800 text-white p-2 rounded w-full border border-slate-600 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="Pending">
-                        Pending (සමාලෝචනය වෙමින් පවතී)
-                      </option>
-                      <option value="Investigating">
-                        Investigating (විමර්ශනය කරමින් පවතී)
-                      </option>
-                      <option value="Resolved">Resolved (විසඳා ඇත)</option>
-                    </select>
-                    <textarea
-                      name="reply"
-                      defaultValue={comp.investigator_reply || ""}
-                      placeholder="පැමිණිලිකරුට පණිවිඩයක් (Optional)"
-                      className="w-full bg-slate-800 text-white p-2 rounded border border-slate-600 text-sm focus:border-blue-500 focus:outline-none"
-                      rows={2}
-                    />
-                    <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold transition-colors w-full"
-                    >
-                      Update (යාවත්කාලීන කරන්න)
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                /* Decrypt කරලා නැත්නම් පෙන්වන කොටස */
-                <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center mt-4">
-                  <p className="text-xs text-red-400 font-medium">
-                    🔒 පණිවිඩය යැවීමට සහ තත්ත්වය යාවත්කාලීන කිරීමට ප්‍රථම,
-                    ඉහළින් ඔබගේ Private Key එක ලබාදී පැමිණිල්ල Unlock කරන්න.
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+          <h2 className="text-xl font-bold text-white mb-4">{t.auditLogTitle}</h2>
+          <p className="text-slate-500 text-sm">{t.auditLogEmpty}</p>
         </div>
       </div>
     </div>

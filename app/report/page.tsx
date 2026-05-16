@@ -542,20 +542,20 @@ mGyXFZPq566yTQs=
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10">
-        <nav className="mb-8 flex items-center justify-between gap-6 rounded-full border border-slate-700 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur">
+        <div className="mx-auto mb-8 flex w-full max-w-2xl flex-col items-center justify-between gap-4 sm:flex-row">
           <Link
             href="/"
-            className="text-sm font-bold text-slate-300 transition-colors hover:text-emerald-400"
+            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 rounded-lg text-sm transition-all shadow-sm"
           >
             ← Back to SecureReport
           </Link>
           <Link
             href="/status"
-            className="rounded-full border border-slate-700 bg-slate-950/70 px-5 py-2.5 text-sm font-bold text-slate-300 transition-colors hover:border-emerald-500 hover:text-emerald-400"
+            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 rounded-lg text-sm transition-all shadow-sm"
           >
             {t.linkCheckStatus}
           </Link>
-        </nav>
+        </div>
 
         <section id="submit-report" className="mx-auto w-full max-w-xl pb-20 pt-4">
           <div className="w-full rounded-2xl border border-slate-700 bg-[#1e293b] p-8 shadow-2xl shadow-black/30">

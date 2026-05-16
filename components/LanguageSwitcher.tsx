@@ -8,7 +8,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="fixed right-4 top-4 z-[100] flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-inner"
+      className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-inner"
       role="group"
       aria-label="Language"
     >

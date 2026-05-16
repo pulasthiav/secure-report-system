@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Eye, LockKeyhole, Shield, ShieldCheck } from "lucide-react";
 import { useLanguage } from "../components/LanguageContext";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 
 const landingCopy = {
   en: {
@@ -13,6 +14,7 @@ const landingCopy = {
       "Submit sensitive reports through a protected channel using PGP encryption, automated AI identity redaction, metadata stripping, and public oversight safeguards designed for high-trust civic reporting.",
     submit: "Submit Report",
     status: "Check Case Status",
+    oversight: "OVERSIGHT",
     secureChannel: "Secure Channel",
     vault: "PGP Vault",
     vaultText:
@@ -26,6 +28,7 @@ const landingCopy = {
       "PGP සංකේතනය, AI අනන්‍යතා ඉවත් කිරීම, metadata ඉවත් කිරීම සහ මහජන නිරීක්ෂණ ආරක්ෂාවන් සමඟ සංවේදී වාර්තා ආරක්ෂිත මාර්ගයකින් ඉදිරිපත් කරන්න.",
     submit: "වාර්තාවක් යොමු කරන්න",
     status: "තත්ත්වය පරීක්ෂා කරන්න",
+    oversight: "නිරීක්ෂණය",
     secureChannel: "ආරක්ෂිත නාලිකාව",
     vault: "PGP Vault",
     vaultText:
@@ -43,24 +46,29 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10">
-        <nav className="flex items-center justify-between gap-6 rounded-full border border-slate-700 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow-sm">
-              <Shield className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight text-white">
-              SecureReport
-            </span>
-          </Link>
+        <div className="w-full flex flex-col items-end gap-3 z-50">
+          <nav className="w-full flex justify-between items-center gap-6 rounded-full border border-slate-700 bg-slate-900/90 px-4 py-4 shadow-2xl shadow-black/30 backdrop-blur">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow-sm">
+                <Shield className="h-5 w-5" strokeWidth={2.4} />
+              </span>
+              <span className="text-lg font-extrabold tracking-tight text-white">
+                SecureReport
+              </span>
+            </Link>
 
-          <Link
-            href="/oversight"
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-full px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all shadow-md"
-          >
-            <Eye className="h-4 w-4" />
-            OVERSIGHT
-          </Link>
-        </nav>
+            <Link
+              href="/oversight"
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-full px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all shadow-md"
+            >
+              <Eye className="h-4 w-4" />
+              {copy.oversight}
+            </Link>
+          </nav>
+          <div className="mr-6">
+            <LanguageSwitcher />
+          </div>
+        </div>
 
         <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:py-24">
           <div className="max-w-2xl">

@@ -17,7 +17,6 @@ type EvidenceExifMetadata = {
   latitude?: number;
   longitude?: number;
   dateTime?: string;
-  software?: string;
 };
 
 function EvidenceMetadataPanel({
@@ -43,9 +42,8 @@ function EvidenceMetadataPanel({
 
   const hasGps = meta.latitude != null && meta.longitude != null;
   const hasDate = Boolean(meta.dateTime);
-  const hasSoftware = Boolean(meta.software);
 
-  if (!hasGps && !hasDate && !hasSoftware) {
+  if (!hasGps && !hasDate) {
     return <p className="text-xs text-slate-500">{t.metadataNone}</p>;
   }
 
@@ -72,14 +70,19 @@ function EvidenceMetadataPanel({
           </a>
         </li>
       )}
-      {hasSoftware && (
-        <li>
-          <strong>{t.exifSoftware}</strong>{" "}
-          <span className="text-slate-400 ml-1">{meta.software}</span>
-        </li>
-      )}
     </ul>
   );
+}
+
+function isComplaintUnlocked(
+  complaintId: string,
+  decryptedTexts: Record<string, string>,
+): boolean {
+  const decrypted = decryptedTexts[complaintId];
+  if (!decrypted) return false;
+  if (decrypted.includes("⚠️")) return false;
+  if (decrypted.includes("BEGIN PGP MESSAGE")) return false;
+  return true;
 }
 
 function EvidenceImage({
@@ -520,29 +523,44 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {selectedComplaint.evidence_path && (
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-400 mb-2">
-                      {t.evidenceLinkText}
-                    </h3>
-                    <EvidenceImage
-                      storageId={selectedComplaint.evidence_path}
-                      loadingText={t.evidenceLinkLoading}
-                      linkText={t.evidenceLinkText}
-                    />
-                  </div>
-                )}
+                {(selectedComplaint.evidence_path ||
+                  selectedComplaint.metadata) &&
+                  (isComplaintUnlocked(
+                    selectedComplaint._id,
+                    decryptedTexts,
+                  ) ? (
+                    <>
+                      {selectedComplaint.evidence_path && (
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-400 mb-2">
+                            {t.evidenceLinkText}
+                          </h3>
+                          <EvidenceImage
+                            storageId={selectedComplaint.evidence_path}
+                            loadingText={t.evidenceLinkLoading}
+                            linkText={t.evidenceLinkText}
+                          />
+                        </div>
+                      )}
 
-                {selectedComplaint.metadata && (
-                  <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
-                    <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
-                      <span>📍</span> {t.exifPanelTitle}
-                    </h3>
-                    <EvidenceMetadataPanel
-                      metadata={selectedComplaint.metadata}
-                    />
-                  </div>
-                )}
+                      {selectedComplaint.metadata && (
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                          <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
+                            <span>📍</span> {t.exifPanelTitle}
+                          </h3>
+                          <EvidenceMetadataPanel
+                            metadata={selectedComplaint.metadata}
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center">
+                      <p className="text-xs text-red-400 font-medium">
+                        🔒 {t.lockedEvidenceMessage}
+                      </p>
+                    </div>
+                  ))}
 
                 {selectedComplaint.reporter_reply && (
                   <div className="bg-emerald-900/30 p-4 rounded-lg border border-emerald-800/50">

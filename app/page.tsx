@@ -13,7 +13,6 @@ type EvidenceExifPayload = {
   latitude?: number;
   longitude?: number;
   dateTime?: string;
-  software?: string;
 };
 
 const GEOLOCATION_FALLBACK_TIMEOUT_MS = 5000;
@@ -255,9 +254,6 @@ export default function Home() {
 
     ctx.drawImage(video, 0, 0);
     captureContextRef.current.dateTime = new Date().toISOString();
-    if (!captureContextRef.current.software) {
-      captureContextRef.current.software = "Device Camera";
-    }
 
     canvas.toBlob(
       (blob) => {
@@ -321,10 +317,6 @@ export default function Home() {
               : String(rawDate);
         }
 
-        const deviceInfo = exif.Software ?? exif.Make;
-        if (deviceInfo) {
-          payload.software = String(deviceInfo);
-        }
       }
     } catch {
       /* No EXIF in file — common for live camera captures */
@@ -340,16 +332,12 @@ export default function Home() {
       if (!payload.dateTime && captureFallback.dateTime) {
         payload.dateTime = captureFallback.dateTime;
       }
-      if (!payload.software && captureFallback.software) {
-        payload.software = captureFallback.software;
-      }
     }
 
     if (
       payload.latitude == null &&
       payload.longitude == null &&
-      !payload.dateTime &&
-      !payload.software
+      !payload.dateTime
     ) {
       return undefined;
     }

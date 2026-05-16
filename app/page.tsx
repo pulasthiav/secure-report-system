@@ -6,7 +6,9 @@ import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api"; // Convex API එක Import කරගත්තා
 import { redactPIIWithAI } from "./actions/redact-pii";
-import { useTranslations } from "../components/LanguageContext";
+import { useLanguage, useTranslations } from "../components/LanguageContext";
+import { classifyFraudCategory } from "../lib/classifyFraudCategory";
+import { generateReceiptPdf } from "../lib/generateReceiptPdf";
 import exifr from "exifr";
 
 type EvidenceExifPayload = {
@@ -82,6 +84,7 @@ async function applyGeolocationFallback(
 }
 
 export default function Home() {
+  const { language } = useLanguage();
   const t = useTranslations().home;
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -97,7 +100,11 @@ export default function Home() {
     caseKey: string;
     hash: string;
     pgpText: string;
+    categoryKey: string;
+    submittedAt: string;
+    status: "Pending" | "Investigating" | "Resolved";
   } | null>(null);
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
   const generateUploadUrl = useMutation(api.complaints.generateUploadUrl);
   const createComplaint = useMutation(api.complaints.createComplaint);
@@ -419,37 +426,25 @@ mGyXFZPq566yTQs=
       img.src = url;
     });
 
-  // ─── Receipt Download Function ────────────────────────────────────────────
-  const downloadReceipt = () => {
-    if (!receiptData) return;
+  const downloadReceipt = async () => {
+    if (!receiptData || isDownloadingReceipt) return;
 
-    const content = `===================================================
-SECURE-REPORT: DIGITAL EVIDENCE RECEIPT
-===================================================
-මෙම ලේඛනය ඔබගේ පැමිණිල්ලේ ඩිජිටල් සාක්ෂියයි. මෙය සුරක්ෂිතව තබාගන්න.
-
-[1] රහස්‍ය අංකය (CASE KEY):
-${receiptData.caseKey}
-
-[2] බ්ලොක්චේන් සාක්ෂිය (BLOCKCHAIN SHA-256 HASH):
-${receiptData.hash}
-
-[3] සංකේතනය කළ පණිවිඩය (PGP ENCRYPTED MESSAGE):
-${receiptData.pgpText}
-
-===================================================
-* මෙය පද්ධතියෙන් ස්වයංක්‍රීයව නිකුත් කරන ලද්දකි.
-* දත්ත ගබඩාවෙන් මෙම පැමිණිල්ල මැකී ගියද, මෙම ලේඛනය හරහා ඔබට සාධාරණය ඉල්ලා සිටිය හැක.`;
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `SecureReport_Receipt_${receiptData.caseKey}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setIsDownloadingReceipt(true);
+    try {
+      await generateReceiptPdf(language, {
+        caseKey: receiptData.caseKey,
+        hash: receiptData.hash,
+        pgpText: receiptData.pgpText,
+        categoryKey: receiptData.categoryKey,
+        submittedAt: new Date(receiptData.submittedAt),
+        status: receiptData.status,
+      });
+    } catch (err) {
+      console.error("PDF receipt generation failed:", err);
+      setError(t.genericError);
+    } finally {
+      setIsDownloadingReceipt(false);
+    }
   };
 
   // ─── Form Submit ──────────────────────────────────────────────────────────
@@ -514,6 +509,9 @@ ${receiptData.pgpText}
         caseKey: newCaseKey,
         hash: blockchainHash,
         pgpText: encryptedDescription,
+        categoryKey: classifyFraudCategory(safeDescription),
+        submittedAt: new Date().toISOString(),
+        status: "Pending",
       });
 
       // Step 4 — Save to Convex Database
@@ -584,8 +582,10 @@ ${receiptData.pgpText}
             </div>
 
             <button
-              onClick={downloadReceipt}
-              className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => void downloadReceipt()}
+              disabled={isDownloadingReceipt}
+              className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
             >
               <svg
                 className="w-5 h-5"
@@ -600,7 +600,7 @@ ${receiptData.pgpText}
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              {t.downloadReceipt}
+              {isDownloadingReceipt ? t.submitting : t.downloadReceipt}
             </button>
 
             <Link

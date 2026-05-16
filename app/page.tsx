@@ -30,20 +30,21 @@ export default function Home() {
 
   // ─── PII Redaction via Groq ───────────────────────────────────────────────
   const redactPIIWithAI = async (text: string): Promise<string> => {
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content: `You are a privacy filter for a Singlish (Sinhala + English mixed) whistleblower system. 
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a privacy filter for a Singlish (Sinhala + English mixed) whistleblower system. 
 Your ONLY job is to protect the identity of the REPORTER and their WITNESSES. 
 
 WHAT TO REDACT (replace with [REDACTED]):
@@ -76,27 +77,31 @@ Input:  "mama kalindu mage yaluwa yahanuth dakka boc eka ehapatte kade krnne"
 Output: "mama [REDACTED] mage yaluwa [REDACTED] yahanuth dakka [REDACTED]"
 
 Return ONLY the redacted Singlish text. No explanation. No English translation.`,
-            },
-            {
-              role: "user",
-              content: text,
-            },
-          ],
-          max_tokens: 1024,
-          temperature: 0,
-        }),
-      },
-    );
+              },
+              {
+                role: "user",
+                content: text,
+              },
+            ],
+            max_tokens: 1024,
+            temperature: 0,
+          }),
+        },
+      );
 
-    const data = await response.json();
-    
-    const aiContent = data?.choices?.[0]?.message?.content;
-    const cleaned = aiContent ? aiContent.trim() : text.trim();
+      const data = await response.json();
+      const aiContent = data?.choices?.[0]?.message?.content;
+      const cleaned = aiContent ? aiContent.trim() : text.trim();
 
-    return cleaned
-      .replace(/^Output:\s*/i, "")
-      .replace(/^"|"$/g, "")
-      .trim();
+      return cleaned
+        .replace(/^Output:\s*/i, "")
+        .replace(/^"|"$/g, "")
+        .trim();
+    } catch (error) {
+      // OpenAI සර්වර් වල අවුලක් වුණොත් ඇප් එක හිර නොවී, ක්‍රෑෂ් නොවී මුල් ටෙක්ස්ට් එකම සේව් වෙන්න සලස්වයි
+      console.error("OpenAI Redaction Fallback Error:", error);
+      return text.trim();
+    }
   };
 
   // ─── PGP Encryption ───────────────────────────────────────────────────────

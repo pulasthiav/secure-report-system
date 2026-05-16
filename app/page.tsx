@@ -31,13 +31,21 @@ export default function Home() {
 
   // ─── PII Redaction via Groq ───────────────────────────────────────────────
   const redactPIIWithAI = async (text: string): Promise<string> => {
+    const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+
+    if (!apiKey) {
+      throw new Error(
+        "Groq API key is not configured. Add NEXT_PUBLIC_GROQ_API_KEY to .env.local and restart the dev server.",
+      );
+    }
+
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
@@ -90,8 +98,21 @@ Return ONLY the redacted Singlish text. No explanation. No English translation.`
     );
 
     const data = await response.json();
-    const cleaned = data.choices[0].message.content.trim();
-    return cleaned
+    if (!response.ok) {
+      const message =
+        typeof data?.error?.message === "string"
+          ? data.error.message
+          : "AI redaction request failed.";
+      throw new Error(message);
+    }
+
+    const cleaned = data?.choices?.[0]?.message?.content;
+    if (typeof cleaned !== "string" || !cleaned.trim()) {
+      throw new Error("AI redaction returned an unexpected empty response.");
+    }
+
+    const trimmed = cleaned.trim();
+    return trimmed
       .replace(/^Output:\s*/i, "")
       .replace(/^"|"$|`/g, "")
       .trim();
@@ -257,8 +278,12 @@ ${receiptData.pgpText}
       setSuccessKey(newCaseKey);
       setDescription("");
       setFile(null);
-    } catch (err: any) {
-      setError(err.message || "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.");
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.",
+      );
       console.error(err);
     } finally {
       setIsSubmitting(false);

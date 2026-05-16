@@ -1,32 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export default function OversightDashboard() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchLogs = async () => {
-      const { data, error } = await supabase
-        .from("complaints")
-        .select("id, created_at, status, case_key")
-        .order("created_at", { ascending: false });
-
-      if (data) setLogs(data);
-      setIsLoading(false);
-    };
-
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 10000); // තත්පර 10න් 10ට Update වෙනවා
-    return () => clearInterval(interval);
-  }, []);
+  const logs = useQuery(api.complaints.getPublicComplaintLogs);
+  const isLoading = logs === undefined;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -53,12 +33,12 @@ export default function OversightDashboard() {
               {isLoading ? (
                 <tr><td colSpan={4} className="p-8 text-center text-slate-400 animate-pulse">දත්ත ලබාගනිමින් පවතී...</td></tr>
               ) : logs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={log._id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-4 font-mono text-sm text-blue-600 font-bold">
                     {log.case_key.substring(0, 4)}****
                   </td>
                   <td className="p-4 text-sm text-slate-600">
-                    {new Date(log.created_at).toLocaleString('si-LK')}
+                    {new Date(log._creationTime).toLocaleString('si-LK')}
                   </td>
                   <td className="p-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
@@ -73,7 +53,7 @@ export default function OversightDashboard() {
               ))}
             </tbody>
           </table>
-          {logs.length === 0 && !isLoading && (
+          {logs?.length === 0 && !isLoading && (
             <p className="p-8 text-center text-slate-400 italic">තවමත් පැමිණිලි කිසිවක් වාර්තා වී නොමැත.</p>
           )}
         </div>

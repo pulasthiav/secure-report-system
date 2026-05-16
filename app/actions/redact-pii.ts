@@ -12,7 +12,7 @@ WHAT TO REDACT (replace with [REDACTED]):
 - Reporter's workplace/job → e.g. "boc eka ehapatte kade krnne", "job eka keels" → "[REDACTED]"
 - Any detail that could identify WHO IS REPORTING or WHERE THEY ARE
 
-WHAT TO KEEP (do NOT redact):
+WHAT TO KEEP (DO NOT REDACT - CRITICAL!!!):
 - CRITICAL: NEVER REDACT THE NAME OF THE ACCUSED / CRIMINAL (the bad guy). For example, if input is "ravi minihek maranawa" or "kamal allas gannawa", RAVI and KAMAL are criminals. DO NOT REDACT THEM. Investigators must know who committed the crime.
 - The VICTIM (if not the reporter) → e.g. "manussayekta", "lamayata"
 - Crime location → e.g. "maharagama boc", "colombo fort station" (where crime happened)
@@ -25,12 +25,15 @@ SINGLISH RULES:
 - Phone numbers: any 10-digit number starting with 07 → REDACT
 - Location patterns: "inne [place]", "vatenne [place]", "inna thana [place]" → REDACT the location
 
-EXAMPLES:
+EXAMPLES (STUDY THESE CAREFULLY):
+Input:  "mama ashan mama dakka kalindu minihek maranawa"
+Output: "mama [REDACTED] mama dakka kalindu minihek maranawa"
+
 Input:  "mama pulasthi mage wayasa 20 mag phone num ek 0767763425 mama dakka anura kiyla amathi kenek maharagama boc eken salli horakam krnawa"
 Output: "mama [REDACTED] mage wayasa [REDACTED] mag phone num ek [REDACTED] mama dakka anura kiyla amathi kenek maharagama boc eken salli horakam krnawa"
 
-Input:  "mama kalindu mage yaluwa yahanuth dakka boc eka ehapatte kade krnne"
-Output: "mama [REDACTED] mage yaluwa [REDACTED] yahanuth dakka [REDACTED]"
+Input:  "mage yaluwa yahanuth dakka kapila kade gawa allas gannawa"
+Output: "mage yaluwa [REDACTED]th dakka kapila kade gawa allas gannawa"
 
 Return ONLY the redacted Singlish text. No explanation. No English translation.`;
 

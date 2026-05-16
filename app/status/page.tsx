@@ -1,32 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { translations, type Language } from "../../translations";
+
+function getComplaintStatusLabel(
+  status: string | undefined,
+  t: (typeof translations)["en"]["status"],
+): string {
+  switch (status) {
+    case "Resolved":
+      return t.statusResolved;
+    case "Investigating":
+      return t.statusInvestigating;
+    default:
+      return t.statusPending;
+  }
+}
 
 export default function CheckStatus() {
+  const [language, setLanguage] = useState<Language>("si");
   const [caseKeyInput, setCaseKeyInput] = useState("");
   const [activeCaseKey, setActiveCaseKey] = useState<string | null>(null);
   const [newReply, setNewReply] = useState("");
   const [isSending, setIsSending] = useState(false);
-
-  // 👇 ලස්සන Popup එක (Toast) සඳහා අලුත් State එක 👇
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error";
   } | null>(null);
 
-  // Popup එක පෙන්නලා තත්පර 3කින් මකන Function එක
+  const t = translations[language].status;
+
+  useEffect(() => {
+    if (localStorage.getItem("lang") === "en") {
+      setLanguage("en");
+    }
+  }, []);
+
+  const handleLanguageChange = (newLang: Language) => {
+    localStorage.setItem("lang", newLang);
+    window.location.reload();
+  };
+
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
     setTimeout(() => {
       setToast(null);
-    }, 3000); // තත්පර 3ක් තියෙයි
+    }, 3000);
   };
 
-  // ─── Convex Magic! (No more setInterval needed) ───────────────────────────
-  // activeCaseKey එකක් තියෙනවා නම් විතරක් Database එකෙන් Live Data ගන්නවා
   const complaint = useQuery(
     api.complaints.getComplaintByCaseKey,
     activeCaseKey ? { case_key: activeCaseKey } : "skip",
@@ -34,21 +59,20 @@ export default function CheckStatus() {
 
   const updateReporterReply = useMutation(api.complaints.updateReporterReply);
 
-  // විමර්ශකයාට ආපහු reply එකක් යැවීම
   const sendReply = async () => {
     if (!newReply.trim() || !complaint) return;
     setIsSending(true);
 
     try {
       await updateReporterReply({
-        id: complaint._id, // Convex වල ID එක තියෙන්නේ _id විදිහටයි
+        id: complaint._id,
         reporter_reply: newReply,
       });
 
-      showToast("ඔබේ පණිවිඩය සාර්ථකව යොමු කෙරුණා!", "success");
+      showToast(t.toastReplySuccess, "success");
       setNewReply("");
-    } catch (err: any) {
-      showToast("පණිවිඩය යැවීමට නොහැකි විය!", "error");
+    } catch (err: unknown) {
+      showToast(t.toastReplyError, "error");
       console.error(err);
     } finally {
       setIsSending(false);
@@ -64,7 +88,8 @@ export default function CheckStatus() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 relative">
-      {/* 👇 උඩින් මතුවෙන ලස්සන Toast Notification එක 👇 */}
+      <LanguageSwitcher language={language} onChange={handleLanguageChange} />
+
       {toast && (
         <div className="fixed top-6 right-6 z-50 animate-fade-in transition-all duration-300">
           <div
@@ -87,14 +112,13 @@ export default function CheckStatus() {
           </div>
         </div>
       )}
-      {/* 👆 Toast එක අවසන් 👆 */}
 
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         <h1 className="text-2xl font-bold text-slate-800 mb-2 text-center">
-          පැමිණිල්ලේ තත්ත්වය
+          {t.statusTitle}
         </h1>
         <p className="text-sm text-slate-500 mb-6 text-center">
-          ඔබගේ රහස්‍ය Case Key අංකය ඇතුළත් කර විමර්ශන තත්ත්වය දැනගන්න.
+          {t.statusSubtitle}
         </p>
 
         <form onSubmit={handleCheckStatus} className="space-y-4">
@@ -105,7 +129,7 @@ export default function CheckStatus() {
               value={caseKeyInput}
               onChange={(e) => setCaseKeyInput(e.target.value)}
               className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-700 text-center font-mono text-xl uppercase tracking-widest"
-              placeholder="CASE KEY"
+              placeholder={t.caseKeyPlaceholder}
               maxLength={8}
             />
           </div>
@@ -122,29 +146,27 @@ export default function CheckStatus() {
                 : "bg-slate-800 hover:bg-slate-900 active:scale-95"
             }`}
           >
-            තත්ත්වය පරීක්ෂා කරන්න
+            {t.checkButton}
           </button>
         </form>
 
-        {/* Loading / Error States (Convex Handles this beautifully) */}
         {activeCaseKey && complaint === undefined && (
           <div className="mt-6 text-blue-600 text-sm bg-blue-50 p-4 rounded-lg border border-blue-100 text-center animate-pulse">
-            සොයමින් පවතී...
+            {t.searching}
           </div>
         )}
 
         {activeCaseKey && complaint === null && (
           <div className="mt-6 text-red-600 text-sm bg-red-50 p-4 rounded-lg border border-red-100 text-center">
-            ඔබ ඇතුළත් කළ Case Key අංකය වැරදියි හෝ පැමිණිල්ලක් සොයාගත නොහැක.
+            {t.notFound}
           </div>
         )}
 
-        {/* Result */}
         {complaint && (
           <div className="mt-8 space-y-4 animate-fade-in">
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                වත්මන් තත්ත්වය
+                {t.currentStatus}
               </h3>
               <span
                 className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
@@ -155,23 +177,22 @@ export default function CheckStatus() {
                       : "bg-yellow-100 text-yellow-700"
                 }`}
               >
-                {complaint.status || "Pending (සමාලෝචනය වෙමින් පවතී)"}
+                {getComplaintStatusLabel(complaint.status, t)}
               </span>
             </div>
 
             <div className="p-5 bg-blue-50 rounded-xl border border-blue-100">
               <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
-                විමර්ශකයන්ගේ පණිවිඩය
+                {t.investigatorMessage}
               </h3>
               <p className="text-sm text-slate-700 font-medium">
-                {complaint.investigator_reply ||
-                  "තවමත් විමර්ශකයන්ගෙන් පණිවිඩයක් ලැබී නොමැත."}
+                {complaint.investigator_reply || t.noInvestigatorMessage}
               </p>
             </div>
 
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                ඔබගේ මුල් පැමිණිල්ල
+                {t.originalComplaint}
               </h3>
               <div className="text-sm text-slate-600 italic">
                 {complaint.description.includes("BEGIN PGP MESSAGE") ? (
@@ -187,10 +208,9 @@ export default function CheckStatus() {
                         strokeLinejoin="round"
                         strokeWidth="2"
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      ></path>
+                      />
                     </svg>
-                    මෙම දත්ත PGP තාක්ෂණයෙන් ආරක්ෂිතව සංකේතනය (Encrypt) කර ඇත.
-                    මෙය කියවිය හැක්කේ විමර්ශකයින්ට පමණි.
+                    {t.pgpEncryptedNotice}
                   </span>
                 ) : (
                   `"${complaint.description}"`
@@ -198,15 +218,14 @@ export default function CheckStatus() {
               </div>
             </div>
 
-            {/* Reply Box */}
             <div className="space-y-3 pt-4 border-t border-slate-200">
               <p className="text-sm font-bold text-slate-600">
-                විමර්ශකයාට පිළිතුරක් යවන්න:
+                {t.replyToInvestigator}
               </p>
               <textarea
                 value={newReply}
                 onChange={(e) => setNewReply(e.target.value)}
-                placeholder="ඔබේ පණිවිඩය මෙතැන ටයිප් කරන්න..."
+                placeholder={t.replyPlaceholder}
                 className="w-full p-3 bg-white border border-slate-300 rounded-xl text-slate-800 text-sm h-24 focus:ring-2 focus:ring-blue-500"
               />
               <button
@@ -214,13 +233,13 @@ export default function CheckStatus() {
                 disabled={isSending || !newReply.trim()}
                 className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-md hover:bg-emerald-700 transition-all disabled:bg-slate-400"
               >
-                {isSending ? "යවමින් පවතී..." : "පණිවිඩය යවන්න"}
+                {isSending ? t.sendingReply : t.sendReply}
               </button>
 
               {complaint.reporter_reply && (
                 <div className="mt-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
                   <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1">
-                    ✓ ඔබ යැවූ අවසන් පිළිතුර:
+                    ✓ {t.lastReply}
                   </p>
                   <p className="text-sm text-emerald-800">
                     {complaint.reporter_reply}
@@ -249,7 +268,7 @@ export default function CheckStatus() {
                 d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            ආපසු ප්‍රධාන පිටුවට
+            {t.backButton}
           </Link>
         </div>
       </div>

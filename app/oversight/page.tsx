@@ -1,32 +1,63 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api"; // Convex API එක ගත්තා
+import { api } from "../../convex/_generated/api";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { translations, type Language } from "../../translations";
+
+function getStatusLabel(
+  status: string | undefined,
+  t: (typeof translations)[Language]["oversight"],
+): string {
+  switch (status) {
+    case "Resolved":
+      return t.statusResolved;
+    case "Investigating":
+      return t.statusInvestigating;
+    default:
+      return t.statusPending;
+  }
+}
 
 export default function OversightDashboard() {
-  // Convex Magic: තත්‍ය කාලීනව (Real-time) කිසිම useEffect/setInterval එකක් නැතුව දත්ත ලයිව් ලබාගනී
+  const [language, setLanguage] = useState<Language>("si");
   const logs = useQuery(api.complaints.getAllComplaints);
   const isLoading = logs === undefined;
 
+  const t = translations[language].oversight;
+
+  useEffect(() => {
+    if (localStorage.getItem("lang") === "en") {
+      setLanguage("en");
+    }
+  }, []);
+
+  const handleLanguageChange = (newLang: Language) => {
+    localStorage.setItem("lang", newLang);
+    window.location.reload();
+  };
+
+  const dateLocale = language === "en" ? "en-LK" : "si-LK";
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 relative">
+      <LanguageSwitcher language={language} onChange={handleLanguageChange} />
+
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
-              🔍 නිරීක්ෂණ පුවරුව (Public Oversight)
+              🔍 {t.title}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              පද්ධතියට ලැබෙන පැමිණිලි සහ ඒවායේ ප්‍රගතිය විනිවිදභාවයෙන් යුතුව
-              මෙහි දැක්වේ.
-            </p>
+            <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
           </div>
           <Link
             href="/"
             className="bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all active:scale-95 shadow-sm"
           >
-            ආපසු
+            {t.back}
           </Link>
         </div>
 
@@ -35,16 +66,16 @@ export default function OversightDashboard() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase">
-                  Case Reference
+                  {t.colCaseReference}
                 </th>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase">
-                  ලැබුණු දිනය
+                  {t.colReceivedDate}
                 </th>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase">
-                  තත්ත්වය (Status)
+                  {t.colStatus}
                 </th>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase text-center">
-                  Blockchain Proof
+                  {t.colBlockchainProof}
                 </th>
               </tr>
             </thead>
@@ -55,7 +86,7 @@ export default function OversightDashboard() {
                     colSpan={4}
                     className="p-8 text-center text-slate-400 animate-pulse"
                   >
-                    දත්ත ලබාගනිමින් පවතී...
+                    {t.loading}
                   </td>
                 </tr>
               ) : (
@@ -70,8 +101,7 @@ export default function OversightDashboard() {
                         : "N/A"}
                     </td>
                     <td className="p-4 text-sm text-slate-600">
-                      {/* Convex වල default එන _creationTime එක පාවිච්චි කරලා ලෝකල් දිනය ගනී */}
-                      {new Date(log._creationTime).toLocaleString("si-LK")}
+                      {new Date(log._creationTime).toLocaleString(dateLocale)}
                     </td>
                     <td className="p-4">
                       <span
@@ -83,7 +113,7 @@ export default function OversightDashboard() {
                               : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {log.status || "Pending"}
+                        {getStatusLabel(log.status, t)}
                       </span>
                     </td>
                     <td className="p-4 text-center text-[18px]">✅</td>
@@ -94,30 +124,22 @@ export default function OversightDashboard() {
           </table>
 
           {!isLoading && logs.length === 0 && (
-            <p className="p-8 text-center text-slate-400 italic">
-              තවමත් පැමිණිලි කිසිවක් වාර්තා වී නොමැත.
-            </p>
+            <p className="p-8 text-center text-slate-400 italic">{t.empty}</p>
           )}
         </div>
 
         <div className="mt-6 flex gap-4">
           <div className="flex-1 bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
             <h4 className="text-emerald-700 font-bold text-sm">
-              විනිවිදභාවය (Transparency)
+              {t.transparencyTitle}
             </h4>
-            <p className="text-xs text-emerald-600 mt-1">
-              පැමිණිල්ලේ අන්තර්ගතය ਰහසිගත වුවද, එය පද්ධතියට ලැබුණු බව ඕනෑම
-              අයෙකුට තහවුරු කර ගත හැක.
-            </p>
+            <p className="text-xs text-emerald-600 mt-1">{t.transparencyBody}</p>
           </div>
           <div className="flex-1 bg-blue-50 border border-blue-100 p-4 rounded-xl">
             <h4 className="text-blue-700 font-bold text-sm">
-              මකා දැමිය නොහැක (Immutable)
+              {t.immutableTitle}
             </h4>
-            <p className="text-xs text-blue-600 mt-1">
-              විමර්ශකයින්ට පැමිණිලි මකා දැමිය නොහැකි අතර, සෑම ක්‍රියාවක්ම ලොග්
-              (Log) වේ.
-            </p>
+            <p className="text-xs text-blue-600 mt-1">{t.immutableBody}</p>
           </div>
         </div>
       </div>

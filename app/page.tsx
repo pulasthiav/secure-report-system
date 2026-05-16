@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
-import { api } from "../convex/_generated/api"; // Convex API එක Import කරගත්තා
+import { api } from "../convex/_generated/api";
 import { redactPIIWithAI } from "./actions/redact-pii";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { classifyFraudCategory } from "../lib/classifyFraudCategory";
+import { generateReceiptPdf } from "../lib/generateReceiptPdf";
+import { translations, type Language } from "../translations";
 
 export default function Home() {
+  const [language, setLanguage] = useState<Language>("si");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,10 +26,27 @@ export default function Home() {
     caseKey: string;
     hash: string;
     pgpText: string;
+    category: string;
+    status: string;
+    submittedAt: Date;
   } | null>(null);
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
   const generateUploadUrl = useMutation(api.complaints.generateUploadUrl);
   const createComplaint = useMutation(api.complaints.createComplaint);
+
+  const t = translations[language].home;
+
+  useEffect(() => {
+    if (localStorage.getItem("lang") === "en") {
+      setLanguage("en");
+    }
+  }, []);
+
+  const handleLanguageChange = (newLang: Language) => {
+    localStorage.setItem("lang", newLang);
+    window.location.reload();
+  };
 
   const generateCaseKey = () =>
     Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -93,36 +115,29 @@ mGyXFZPq566yTQs=
     });
 
   // ─── Receipt Download Function ────────────────────────────────────────────
-  const downloadReceipt = () => {
-    if (!receiptData) return;
+  const downloadReceipt = async () => {
+    if (!receiptData || isDownloadingReceipt) return;
 
-    const content = `===================================================
-SECURE-REPORT: DIGITAL EVIDENCE RECEIPT
-===================================================
-මෙම ලේඛනය ඔබගේ පැමිණිල්ලේ ඩිජිටල් සාක්ෂියයි. මෙය සුරක්ෂිතව තබාගන්න.
+    const currentLang =
+      (localStorage.getItem("lang") as Language | null) || "si";
 
-[1] රහස්‍ය අංකය (CASE KEY):
-${receiptData.caseKey}
-
-[2] බ්ලොක්චේන් සාක්ෂිය (BLOCKCHAIN SHA-256 HASH):
-${receiptData.hash}
-
-[3] සංකේතනය කළ පණිවිඩය (PGP ENCRYPTED MESSAGE):
-${receiptData.pgpText}
-
-===================================================
-* මෙය පද්ධතියෙන් ස්වයංක්‍රීයව නිකුත් කරන ලද්දකි.
-* දත්ත ගබඩාවෙන් මෙම පැමිණිල්ල මැකී ගියද, මෙම ලේඛනය හරහා ඔබට සාධාරණය ඉල්ලා සිටිය හැක.`;
-
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `SecureReport_Receipt_${receiptData.caseKey}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setIsDownloadingReceipt(true);
+    try {
+      const blob = await generateReceiptPdf(receiptData, currentLang);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SecureReport_Receipt_${receiptData.caseKey}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Receipt PDF generation failed:", err);
+      setError(t.errorGeneric);
+    } finally {
+      setIsDownloadingReceipt(false);
+    }
   };
 
   // ─── Form Submit ──────────────────────────────────────────────────────────
@@ -136,15 +151,15 @@ ${receiptData.pgpText}
 
     try {
       // Step 1 — PII redaction
-      setStatusMessage("AI මගින් පෞද්ගලික දත්ත (PII) පරික්ෂා කරමින් පවතී...");
+      setStatusMessage(t.statusPiiCheck);
       const safeDescription = await redactPIIWithAI(description);
 
       // Step 2 — Metadata strip + upload via Convex
       if (file) {
-        setStatusMessage("සාක්ෂි ගොනුවේ Metadata මකා දමමින් පවතී...");
+        setStatusMessage(t.statusStripMetadata);
         const cleanFile = await stripMetadata(file);
 
-        setStatusMessage("ආරක්ෂිතව සාක්ෂි ගබඩා කරමින් පවතී...");
+        setStatusMessage(t.statusUploadEvidence);
 
         // Convex Storage එකට යැවීම
         const postUrl = await generateUploadUrl();
@@ -161,7 +176,7 @@ ${receiptData.pgpText}
       }
 
       // Step 3 — PGP encrypt
-      setStatusMessage("PGP තාක්ෂණයෙන් දත්ත Encrypt කරමින් පවතී...");
+      setStatusMessage(t.statusEncrypt);
       const encryptedDescription = await encryptWithPGP(safeDescription);
 
       // Step 3.5 — Generate Immutable Hash & Set Receipt Data
@@ -171,14 +186,19 @@ ${receiptData.pgpText}
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
 
+      const fraudCategory = classifyFraudCategory(safeDescription);
+
       setReceiptData({
         caseKey: newCaseKey,
         hash: blockchainHash,
         pgpText: encryptedDescription,
+        category: fraudCategory,
+        status: "Pending",
+        submittedAt: new Date(),
       });
 
       // Step 4 — Save to Convex Database
-      setStatusMessage("තොරතුරු පද්ධතියට යොමු කරමින් පවතී...");
+      setStatusMessage(t.statusSubmit);
 
       await createComplaint({
         case_key: newCaseKey,
@@ -190,7 +210,7 @@ ${receiptData.pgpText}
       setDescription("");
       setFile(null);
     } catch (err: any) {
-      setError(err.message || "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.");
+      setError(err.message || t.errorGeneric);
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -199,30 +219,25 @@ ${receiptData.pgpText}
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 relative">
+      <LanguageSwitcher language={language} onChange={handleLanguageChange} />
+
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         <h1 className="text-3xl font-bold text-slate-800 mb-2 text-center tracking-tight">
-          ආරක්ෂිත තොරතුරු වාර්තාකරණය
+          {t.headerTitle}
         </h1>
         <p className="text-sm text-slate-500 mb-8 text-center">
-          AI තාක්ෂණය මගින් ඔබගේ පෞද්ගලික තොරතුරු ස්වයංක්‍රීයව හඳුනාගෙන මකා දැමේ.
+          {t.headerSubtitle}
         </p>
 
         {successKey ? (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-8 text-center">
-            <h2 className="text-xl font-bold mb-3">සාර්ථකයි!</h2>
+            <h2 className="text-xl font-bold mb-3">{t.successTitle}</h2>
 
             {hasEvidence && (
               <div className="mb-6 p-4 rounded-xl text-sm border-2 bg-amber-50 border-amber-300 text-amber-800">
-                <p className="font-bold mb-1">📋 ඡායාරූප සත්‍යතාව පිළිබඳව</p>
-                <p>
-                  ඔබ ඉදිරිපත් කළ සාක්ෂි ඡායාරූප{" "}
-                  <strong>
-                    පරීක්ෂකවරුන් (Investigators) විසින් manually verify
-                  </strong>{" "}
-                  කෙරේ. කිසිම AI tool එකකට 100% නිරවද්‍යව AI-generated ඡායාරූප
-                  හඳුනාගත නොහැකි බැවින්, ඒ වගකීම මිනිස් විශේෂඥයන් සතුයි.
-                </p>
+                <p className="font-bold mb-1">📋 {t.successEvidenceTitle}</p>
+                <p>{t.successEvidenceBody}</p>
               </div>
             )}
 
@@ -233,31 +248,30 @@ ${receiptData.pgpText}
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
-                  Blockchain Audit Trail Verified
+                  {t.blockchainVerified}
                 </p>
               </div>
               <p className="text-[9px] text-slate-400 mb-1 font-mono uppercase">
-                Immutable Hash (SHA-256 Proof):
+                {t.immutableHashLabel}
               </p>
               <p className="text-[10px] font-mono text-slate-300 break-all leading-tight bg-black/30 p-2 rounded border border-white/5">
                 {receiptData?.hash}
               </p>
               <p className="text-[9px] text-slate-500 mt-2 italic">
-                *මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස Blockchain ජාලය මත
-                සටහන් විය.
+                {t.blockchainNote}
               </p>
             </div>
 
-            <p className="text-sm mb-4 mt-6">
-              ඔබගේ රහස්‍ය <strong>Case Key</strong> ආරක්ෂිතව තබා ගන්න:
-            </p>
+            <p className="text-sm mb-4 mt-6">{t.caseKeyKeep}</p>
             <div className="bg-white px-6 py-4 rounded-lg border-2 border-emerald-400 font-mono text-3xl font-bold tracking-[0.2em] text-emerald-700 shadow-inner mb-6">
               {successKey}
             </div>
 
             <button
-              onClick={downloadReceipt}
-              className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => void downloadReceipt()}
+              disabled={isDownloadingReceipt}
+              className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
             >
               <svg
                 className="w-5 h-5"
@@ -272,14 +286,14 @@ ${receiptData.pgpText}
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              ඩිජිටල් සාක්ෂි රිසිට්පත Download කරගන්න (.txt)
+              {t.downloadReceipt}
             </button>
 
             <Link
               href="/status"
               className="block w-full bg-slate-800 text-white text-center py-3 rounded-xl font-bold hover:bg-slate-900 transition-all shadow-md"
             >
-              පැමිණිල්ලේ තත්ත්වය පරීක්ෂා කරන්න
+              {t.checkStatus}
             </Link>
 
             <button
@@ -290,7 +304,7 @@ ${receiptData.pgpText}
               }}
               className="mt-4 text-sm text-emerald-600 underline font-medium"
             >
-              නව තොරතුරක් යොමු කරන්න
+              {t.submitNew}
             </button>
           </div>
         ) : (
@@ -298,7 +312,7 @@ ${receiptData.pgpText}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  විස්තරය (Description):
+                  {t.descriptionLabel}
                 </label>
                 <textarea
                   required
@@ -306,13 +320,13 @@ ${receiptData.pgpText}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-700"
-                  placeholder="විස්තරය ඇතුළත් කරන්න..."
+                  placeholder={t.descriptionPlaceholder}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  සාක්ෂි (ඡායාරූප):
+                  {t.evidenceLabel}
                 </label>
                 <input
                   type="file"
@@ -324,11 +338,11 @@ ${receiptData.pgpText}
                 />
                 {file && (
                   <p className="text-xs text-slate-400 mt-1">
-                    ✓ {file.name} — EXIF metadata ඉවත් කර ආරක්ෂිතව යවනු ලැබේ
+                    ✓ {file.name} {t.fileSelectedExif}
                   </p>
                 )}
                 <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                  ⚠️ ඡායාරූප සත්‍යතාව investigators විසින් manually verify කෙරේ.
+                  ⚠️ {t.imageWarning}
                 </p>
               </div>
 
@@ -347,7 +361,7 @@ ${receiptData.pgpText}
                     : "bg-blue-600 hover:bg-blue-700 active:scale-95"
                 }`}
               >
-                {isSubmitting ? "යොමු කරමින් පවතී..." : "ආරක්ෂිතව යොමු කරන්න"}
+                {isSubmitting ? t.submitSubmitting : t.submitButton}
               </button>
 
               {statusMessage && (
@@ -361,13 +375,13 @@ ${receiptData.pgpText}
 
               <div className="flex justify-center gap-3 pt-2 flex-wrap">
                 <span className="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-                  🔒 PGP Encrypted
+                  🔒 {t.badgePgpEncrypted}
                 </span>
                 <span className="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-                  🤖 AI PII Redaction
+                  🤖 {t.badgeAiPiiRedaction}
                 </span>
                 <span className="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-                  🧹 EXIF Stripped
+                  🧹 {t.badgeExifStripped}
                 </span>
               </div>
             </form>
@@ -377,7 +391,7 @@ ${receiptData.pgpText}
                 href="/oversight"
                 className="flex items-center justify-center w-full px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all active:scale-95 text-sm mt-3 mb-3"
               >
-                🔍 මහජන නිරීක්ෂණ පුවරුව (Public Oversight)
+                🔍 {t.bottomButtonOversight}
               </Link>
               <Link
                 href="/status"
@@ -396,7 +410,7 @@ ${receiptData.pgpText}
                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
                 </svg>
-                කලින් පැමිණිල්ලක් තිබේ නම් එහි තත්ත්වය බලන්න
+                {t.bottomButtonTrack}
               </Link>
             </div>
           </div>

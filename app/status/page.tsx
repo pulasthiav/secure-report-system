@@ -62,14 +62,16 @@ export default function CheckStatus() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 relative pt-20">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-slate-950 p-4 pt-20 text-slate-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
       {toast && (
         <div className="fixed top-20 right-6 z-50 animate-fade-in transition-all duration-300">
           <div
             className={`px-6 py-4 rounded-xl shadow-2xl border text-sm font-bold flex items-center gap-3 ${
               toast.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                : "bg-red-50 border-red-200 text-red-800"
+                ? "bg-slate-900 border-emerald-500 text-emerald-300"
+                : "bg-slate-900 border-red-500 text-red-300"
             }`}
           >
             {toast.type === "success" ? (
@@ -86,11 +88,11 @@ export default function CheckStatus() {
         </div>
       )}
 
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        <h1 className="text-2xl font-bold text-slate-800 mb-2 text-center">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl shadow-black/30 backdrop-blur">
+        <h1 className="mb-2 text-center text-2xl font-bold text-white">
           {t.title}
         </h1>
-        <p className="text-sm text-slate-500 mb-6 text-center">{t.subtitle}</p>
+        <p className="mb-6 text-center text-sm text-slate-400">{t.subtitle}</p>
 
         <form onSubmit={handleCheckStatus} className="space-y-4">
           <div>
@@ -99,7 +101,7 @@ export default function CheckStatus() {
               required
               value={caseKeyInput}
               onChange={(e) => setCaseKeyInput(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-700 text-center font-mono text-xl uppercase tracking-widest"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-center font-mono text-xl uppercase tracking-widest text-white placeholder:text-slate-600 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
               placeholder="CASE KEY"
               maxLength={8}
             />
@@ -111,10 +113,10 @@ export default function CheckStatus() {
               !caseKeyInput.trim() ||
               activeCaseKey === caseKeyInput.trim().toUpperCase()
             }
-            className={`w-full py-3 px-4 rounded-xl text-white font-bold shadow-md transition-all ${
+            className={`w-full rounded-xl px-4 py-3 font-bold text-white shadow-md transition-all ${
               !caseKeyInput.trim()
-                ? "bg-slate-400 cursor-not-allowed"
-                : "bg-slate-800 hover:bg-slate-900 active:scale-95"
+                ? "cursor-not-allowed bg-slate-700 text-slate-400"
+                : "bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700"
             }`}
           >
             {t.checkButton}
@@ -122,52 +124,52 @@ export default function CheckStatus() {
         </form>
 
         {activeCaseKey && complaint === undefined && (
-          <div className="mt-6 text-blue-600 text-sm bg-blue-50 p-4 rounded-lg border border-blue-100 text-center animate-pulse">
+          <div className="mt-6 animate-pulse rounded-lg border border-blue-500/30 bg-blue-950/30 p-4 text-center text-sm text-blue-300">
             {t.searching}
           </div>
         )}
 
         {activeCaseKey && complaint === null && (
-          <div className="mt-6 text-red-600 text-sm bg-red-50 p-4 rounded-lg border border-red-100 text-center">
+          <div className="mt-6 rounded-lg border border-red-500/30 bg-red-950/30 p-4 text-center text-sm text-red-300">
             {t.notFound}
           </div>
         )}
 
         {complaint && (
           <div className="mt-8 space-y-4 animate-fade-in">
-            <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-5">
+              <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">
                 {t.currentStatus}
               </h3>
               <span
                 className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
                   complaint.status === "Resolved"
-                    ? "bg-green-100 text-green-700"
+                    ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                     : complaint.status === "Investigating"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-yellow-100 text-yellow-700"
+                      ? "bg-blue-500/15 text-blue-300 border border-blue-500/30"
+                      : "bg-yellow-500/15 text-yellow-300 border border-yellow-500/30"
                 }`}
               >
                 {getStatusPageLabel(complaint.status, language)}
               </span>
             </div>
 
-            <div className="p-5 bg-blue-50 rounded-xl border border-blue-100">
-              <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
+            <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-5">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-blue-300">
                 {t.investigatorMessage}
               </h3>
-              <p className="text-sm text-slate-700 font-medium">
+              <p className="text-sm font-medium text-slate-300">
                 {complaint.investigator_reply || t.noInvestigatorMessage}
               </p>
             </div>
 
-            <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-5">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
                 {t.yourComplaint}
               </h3>
-              <div className="text-sm text-slate-600 italic">
+              <div className="text-sm italic text-slate-300">
                 {complaint.description.includes("BEGIN PGP MESSAGE") ? (
-                  <span className="text-emerald-600 font-semibold flex items-start text-left">
+                  <span className="flex items-start text-left font-semibold text-emerald-300">
                     <svg
                       className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5"
                       fill="none"
@@ -189,28 +191,28 @@ export default function CheckStatus() {
               </div>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-slate-200">
-              <p className="text-sm font-bold text-slate-600">{t.replyLabel}</p>
+            <div className="space-y-3 border-t border-slate-800 pt-4">
+              <p className="text-sm font-bold text-slate-300">{t.replyLabel}</p>
               <textarea
                 value={newReply}
                 onChange={(e) => setNewReply(e.target.value)}
                 placeholder={t.replyPlaceholder}
-                className="w-full p-3 bg-white border border-slate-300 rounded-xl text-slate-800 text-sm h-24 focus:ring-2 focus:ring-blue-500"
+                className="h-24 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200 placeholder:text-slate-600 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
               />
               <button
                 onClick={sendReply}
                 disabled={isSending || !newReply.trim()}
-                className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-md hover:bg-emerald-700 transition-all disabled:bg-slate-400"
+                className="w-full rounded-xl bg-emerald-600 py-3 font-bold text-white shadow-md transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
               >
                 {isSending ? t.sending : t.sendReply}
               </button>
 
               {complaint.reporter_reply && (
-                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-                  <p className="text-[11px] font-bold text-emerald-600 uppercase mb-1">
+                <div className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3">
+                  <p className="mb-1 text-[11px] font-bold uppercase text-emerald-300">
                     {t.lastReply}
                   </p>
-                  <p className="text-sm text-emerald-800">
+                  <p className="text-sm text-emerald-100">
                     {complaint.reporter_reply}
                   </p>
                 </div>
@@ -219,10 +221,10 @@ export default function CheckStatus() {
           </div>
         )}
 
-        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+        <div className="mt-8 border-t border-slate-800 pt-6 text-center">
           <Link
             href="/"
-            className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+            className="inline-flex items-center text-sm font-medium text-slate-400 transition-colors hover:text-white"
           >
             <svg
               className="w-4 h-4 mr-2"

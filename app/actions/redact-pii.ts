@@ -107,7 +107,9 @@ Mama dakka pare loku wanchawakak wenne. mama kiyanne mokuth ne.
 [Sinhala Output]
 මගේ ෆෝන් නම්බර් එක [REDACTED]. නම් ගම් ලිස්ට් එකක් හොරකම් කළා.
 
-FINAL INSTRUCTION: OUTPUT ONLY THE REDACTED TEXT. MATCH THE INPUT LANGUAGE EXACTLY. NO EXTRA WORDS. NO EXPLANATIONS.`;
+FINAL INSTRUCTION: OUTPUT ONLY THE REDACTED TEXT. MATCH THE INPUT LANGUAGE EXACTLY. NO EXTRA WORDS. NO EXPLANATIONS.
+
+- CRITICAL: Never redact the literal English label words 'phone numbers' or 'ID card numbers'. If the input text contains these exact words, they must remain exactly as 'phone numbers' and 'ID card numbers' in the final output. Only redact actual digit values or actual person names.`;
 
 function cleanRedactedOutput(aiContent: string, fallback: string): string {
   return (

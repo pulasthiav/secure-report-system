@@ -1,5 +1,6 @@
 "use client";
 
+import { Globe } from "lucide-react";
 import { useLanguage } from "./LanguageContext";
 
 export function LanguageSwitcher() {
@@ -7,17 +8,19 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="fixed top-4 right-4 z-[100] flex rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl shadow-slate-900/40 ring-1 ring-emerald-500/20"
+      className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-inner"
       role="group"
       aria-label="Language"
     >
+      <Globe className="ml-2 h-3.5 w-3.5 text-slate-500" />
       <button
         type="button"
         onClick={() => setLanguage("si")}
-        className={`px-4 py-2.5 text-sm font-semibold transition-all ${
+        aria-pressed={language === "si"}
+        className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all ${
           language === "si"
-            ? "bg-emerald-500 text-slate-900 shadow-inner"
-            : "text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            ? "bg-slate-700 text-white shadow-sm ring-1 ring-slate-600/50"
+            : "text-slate-400 hover:text-slate-200"
         }`}
       >
         සිංහල
@@ -25,10 +28,11 @@ export function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setLanguage("en")}
-        className={`px-4 py-2.5 text-sm font-semibold transition-all border-l border-slate-700 ${
+        aria-pressed={language === "en"}
+        className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all ${
           language === "en"
-            ? "bg-emerald-500 text-slate-900 shadow-inner"
-            : "text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            ? "bg-slate-700 text-white shadow-sm ring-1 ring-slate-600/50"
+            : "text-slate-400 hover:text-slate-200"
         }`}
       >
         English

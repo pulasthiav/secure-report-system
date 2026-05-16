@@ -9,6 +9,7 @@
  */
 
 import type * as complaints from "../complaints.js";
+import type * as evidenceMetadata from "../evidenceMetadata.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +19,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   complaints: typeof complaints;
+  evidenceMetadata: typeof evidenceMetadata;
 }>;
 
 /**

@@ -234,7 +234,7 @@ export default function Home() {
   const extractExifMetadata = async (
     imageFile: File,
     captureFallback?: EvidenceExifPayload,
-  ): Promise<string | undefined> => {
+  ): Promise<EvidenceExifPayload | undefined> => {
     const payload: EvidenceExifPayload = {};
 
     try {
@@ -292,7 +292,7 @@ export default function Home() {
       return undefined;
     }
 
-    return JSON.stringify(payload);
+    return payload;
   };
 
   const generateCaseKey = () =>
@@ -410,7 +410,7 @@ ${receiptData.pgpText}
 
     const newCaseKey = generateCaseKey();
     let evidencePath = undefined;
-    let fileMetadataForDB: string | undefined;
+    let fileMetadataForDB: EvidenceExifPayload | undefined;
 
     try {
       // Step 1 — PII redaction

@@ -21,16 +21,24 @@ type EvidenceExifMetadata = {
   software?: string;
 };
 
-function EvidenceMetadataPanel({ metadataJson }: { metadataJson: string }) {
+function EvidenceMetadataPanel({
+  metadata,
+}: {
+  metadata: EvidenceExifMetadata | string;
+}) {
   let meta: EvidenceExifMetadata;
-  try {
-    meta = JSON.parse(metadataJson) as EvidenceExifMetadata;
-  } catch {
-    return (
-      <p className="text-xs text-red-400">
-        Metadata කියවීමේ දෝෂයක් මතු විය.
-      </p>
-    );
+  if (typeof metadata === "string") {
+    try {
+      meta = JSON.parse(metadata) as EvidenceExifMetadata;
+    } catch {
+      return (
+        <p className="text-xs text-red-400">
+          Metadata කියවීමේ දෝෂයක් මතු විය.
+        </p>
+      );
+    }
+  } else {
+    meta = metadata;
   }
 
   const hasGps = meta.latitude != null && meta.longitude != null;
@@ -501,7 +509,7 @@ export default function AdminDashboard() {
                     <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
                       <span>📍</span> ඡායාරූපයේ තොරතුරු (EXIF Metadata)
                     </h3>
-                    <EvidenceMetadataPanel metadataJson={comp.metadata} />
+                    <EvidenceMetadataPanel metadata={comp.metadata} />
                   </div>
                 )}
 

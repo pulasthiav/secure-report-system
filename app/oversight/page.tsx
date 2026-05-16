@@ -1,5 +1,6 @@
 "use client";
 
+import { Component, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -18,10 +19,47 @@ type PublicComplaintLog = {
 };
 
 const EN_OVERSIGHT = translations.en.oversight;
+const CONVEX_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
 
 function useSafeOversightTranslations(language: Language) {
   const localized = translations[language]?.oversight;
-  return { ...EN_OVERSIGHT, ...localized };
+  return { ...EN_OVERSIGHT, ...(localized ?? {}) };
+}
+
+function normalizeLogs(raw: unknown): PublicComplaintLog[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .filter((entry): entry is Record<string, unknown> => {
+      return entry != null && typeof entry === "object";
+    })
+    .map((entry, index) => {
+      const idValue = entry._id;
+      const timeValue = entry._creationTime;
+      const caseKeyValue = entry.case_key;
+      const statusValue = entry.status;
+
+      const _id =
+        typeof idValue === "string" && idValue.trim()
+          ? idValue
+          : `unknown-${index}`;
+
+      const _creationTime =
+        typeof timeValue === "number" && !Number.isNaN(timeValue)
+          ? timeValue
+          : typeof timeValue === "string"
+            ? Number(timeValue) || 0
+            : 0;
+
+      return {
+        _id,
+        _creationTime,
+        case_key: typeof caseKeyValue === "string" ? caseKeyValue : "",
+        status: typeof statusValue === "string" ? statusValue : "",
+      };
+    });
 }
 
 function maskCaseReference(caseKey: string | undefined | null): string {
@@ -42,18 +80,29 @@ function formatLogDate(
   if (timestamp == null || Number.isNaN(Number(timestamp))) {
     return "—";
   }
-  try {
-    const formatted = new Date(timestamp).toLocaleString(
-      language === "si" ? "si-LK" : "en-GB",
-      {
+
+  const locales =
+    language === "si" ? ["si-LK", "en-GB"] : ["en-GB", "en-US"];
+
+  for (const locale of locales) {
+    try {
+      const formatted = new Date(timestamp).toLocaleString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-      },
-    );
-    return formatted || "—";
+      });
+      if (formatted) {
+        return formatted;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  try {
+    return new Date(timestamp).toISOString();
   } catch {
     return "—";
   }
@@ -68,7 +117,11 @@ function safeStatusLabel(
   try {
     return getOversightStatusLabel(normalized, language);
   } catch {
-    return getOversightStatusLabel(normalized, "en");
+    try {
+      return getOversightStatusLabel(normalized, "en");
+    } catch {
+      return EN_OVERSIGHT.statusPending;
+    }
   }
 }
 
@@ -83,15 +136,64 @@ function statusBadgeClass(status: string | undefined | null): string {
   return "bg-amber-950/50 border border-amber-800 text-amber-400";
 }
 
-export default function OversightDashboard() {
+function OversightErrorFallback() {
+  return (
+    <div className="min-h-screen bg-slate-950 p-4 pt-20 text-slate-300 md:p-8">
+      <div className="mx-auto max-w-lg rounded-2xl border border-red-500/30 bg-red-950/20 p-8 text-center">
+        <p className="text-lg font-bold text-red-300">Unable to load oversight data</p>
+        <p className="mt-2 text-sm text-slate-400">
+          The dashboard hit an unexpected error. Please reload or return home.
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-full bg-slate-100 px-5 py-2 text-sm font-bold text-slate-900"
+          >
+            Reload
+          </button>
+          <Link
+            href="/"
+            className="rounded-full border border-slate-600 px-5 py-2 text-sm font-bold text-slate-200"
+          >
+            Back
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+class OversightErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <OversightErrorFallback />;
+    }
+    return this.props.children;
+  }
+}
+
+function OversightDashboardContent() {
   const { language } = useLanguage();
   const t = useSafeOversightTranslations(language);
 
-  const logsQuery = useQuery(api.complaints.getPublicComplaintLogs);
-  const isLoading = logsQuery === undefined;
-  const logs: PublicComplaintLog[] = Array.isArray(logsQuery)
-    ? (logsQuery as PublicComplaintLog[])
-    : [];
+  const logsQuery = useQuery(
+    api.complaints.getPublicComplaintLogs,
+    CONVEX_CONFIGURED ? {} : "skip",
+  );
+
+  const isLoading = CONVEX_CONFIGURED && logsQuery === undefined;
+  const logs = normalizeLogs(logsQuery);
+  const configError = !CONVEX_CONFIGURED;
 
   return (
     <div className="min-h-screen bg-slate-950 p-4 pt-20 text-slate-300 md:p-8">
@@ -104,7 +206,7 @@ export default function OversightDashboard() {
             <p className="mt-1 text-sm text-slate-400">
               {t.oversightSubtitle ?? EN_OVERSIGHT.oversightSubtitle}
             </p>
-            </div>
+          </div>
           <Link
             href="/"
             className="rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 shadow-md transition-all hover:bg-slate-700 active:scale-95"
@@ -113,53 +215,55 @@ export default function OversightDashboard() {
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40">
-          <table className="w-full border-separate border-spacing-y-3 px-3 text-left">
-            <thead>
-              <tr>
-                <th className="px-4 pt-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t.colCaseRef ?? EN_OVERSIGHT.colCaseRef}
-                </th>
-                <th className="px-4 pt-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t.colDate ?? EN_OVERSIGHT.colDate}
-                </th>
-                <th className="px-4 pt-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t.colStatus ?? EN_OVERSIGHT.colStatus}
-                </th>
-                <th className="px-4 pt-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t.colProof ?? EN_OVERSIGHT.colProof}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        {configError ? (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-8 text-center text-amber-200">
+            <p className="font-semibold">Database connection is not configured.</p>
+            <p className="mt-2 text-sm text-amber-200/80">
+              Set NEXT_PUBLIC_CONVEX_URL in the deployment environment.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40">
+            <table className="w-full border-separate border-spacing-y-3 px-3 text-left">
+              <thead>
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="rounded-xl border border-slate-700 bg-slate-900 p-8 text-center text-slate-500 animate-pulse"
-                  >
-                    {t.loading ?? EN_OVERSIGHT.loading}
-                  </td>
+                  <th className="px-4 pt-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {t.colCaseRef ?? EN_OVERSIGHT.colCaseRef}
+                  </th>
+                  <th className="px-4 pt-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {t.colDate ?? EN_OVERSIGHT.colDate}
+                  </th>
+                  <th className="px-4 pt-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {t.colStatus ?? EN_OVERSIGHT.colStatus}
+                  </th>
+                  <th className="px-4 pt-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {t.colProof ?? EN_OVERSIGHT.colProof}
+                  </th>
                 </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="rounded-xl border border-slate-700 bg-slate-900 p-8 text-center text-slate-500 italic"
-                  >
-                    {t.empty ?? EN_OVERSIGHT.empty}
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log, index) => {
-                  const rowKey =
-                    typeof log?._id === "string" && log._id
-                      ? log._id
-                      : `log-${index}`;
-
-                  return (
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="rounded-xl border border-slate-700 bg-slate-900 p-8 text-center text-slate-500 animate-pulse"
+                    >
+                      {t.loading ?? EN_OVERSIGHT.loading}
+                    </td>
+                  </tr>
+                ) : logs.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="rounded-xl border border-slate-700 bg-slate-900 p-8 text-center text-slate-500 italic"
+                    >
+                      {t.empty ?? EN_OVERSIGHT.empty}
+                    </td>
+                  </tr>
+                ) : (
+                  logs.map((log, index) => (
                     <tr
-                      key={rowKey}
+                      key={log?._id ? `${log._id}-${index}` : `log-${index}`}
                       className="bg-slate-900 shadow-md transition-colors hover:bg-slate-800"
                     >
                       <td className="rounded-l-xl border-y border-l border-slate-700 p-4 font-mono text-sm font-bold text-blue-400">
@@ -179,12 +283,12 @@ export default function OversightDashboard() {
                         ✅
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="mt-6 flex flex-col gap-4 md:flex-row">
           <div className="flex-1 rounded-xl border border-emerald-800/50 bg-emerald-950/30 p-4">
@@ -209,3 +313,10 @@ export default function OversightDashboard() {
   );
 }
 
+export default function OversightDashboard() {
+  return (
+    <OversightErrorBoundary>
+      <OversightDashboardContent />
+    </OversightErrorBoundary>
+  );
+}

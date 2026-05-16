@@ -7,17 +7,18 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="fixed top-4 right-4 z-[100] flex rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl shadow-slate-900/40 ring-1 ring-emerald-500/20"
+      className="fixed right-4 top-4 z-[100] inline-flex overflow-hidden rounded-full border border-slate-700 bg-slate-900/95 p-1 shadow-xl shadow-slate-950/50 ring-1 ring-emerald-500/20 backdrop-blur"
       role="group"
       aria-label="Language"
     >
       <button
         type="button"
         onClick={() => setLanguage("si")}
-        className={`px-4 py-2.5 text-sm font-semibold transition-all ${
+        aria-pressed={language === "si"}
+        className={`rounded-full px-4 py-2 text-sm font-bold transition-all duration-200 ${
           language === "si"
-            ? "bg-emerald-500 text-slate-900 shadow-inner"
-            : "text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            ? "bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-950/30"
+            : "bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
         }`}
       >
         සිංහල
@@ -25,10 +26,11 @@ export function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setLanguage("en")}
-        className={`px-4 py-2.5 text-sm font-semibold transition-all border-l border-slate-700 ${
+        aria-pressed={language === "en"}
+        className={`rounded-full px-4 py-2 text-sm font-bold transition-all duration-200 ${
           language === "en"
-            ? "bg-emerald-500 text-slate-900 shadow-inner"
-            : "text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            ? "bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-950/30"
+            : "bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
         }`}
       >
         English

@@ -7,6 +7,7 @@ export const createComplaint = mutation({
     case_key: v.string(),
     description: v.string(),
     evidence_path: v.optional(v.string()),
+    metadata: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("complaints", {
@@ -14,6 +15,7 @@ export const createComplaint = mutation({
       description: args.description,
       evidence_path: args.evidence_path,
       status: "Pending",
+      metadata: args.metadata,
     });
   },
 });

@@ -14,6 +14,70 @@ import {
   type Language,
 } from "../../translations";
 
+type EvidenceExifMetadata = {
+  latitude?: number;
+  longitude?: number;
+  dateTime?: string;
+  software?: string;
+};
+
+function EvidenceMetadataPanel({ metadataJson }: { metadataJson: string }) {
+  let meta: EvidenceExifMetadata;
+  try {
+    meta = JSON.parse(metadataJson) as EvidenceExifMetadata;
+  } catch {
+    return (
+      <p className="text-xs text-red-400">
+        Metadata කියවීමේ දෝෂයක් මතු විය.
+      </p>
+    );
+  }
+
+  const hasGps = meta.latitude != null && meta.longitude != null;
+  const hasDate = Boolean(meta.dateTime);
+  const hasSoftware = Boolean(meta.software);
+
+  if (!hasGps && !hasDate && !hasSoftware) {
+    return (
+      <p className="text-xs text-slate-500">
+        ඡායාරූපයේ EXIF තොරතුරු ලබාගත නොහැකි විය.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="text-sm text-slate-300 space-y-2 ml-6 list-disc">
+      {hasDate && (
+        <li>
+          <strong>ලබාගත් දිනය හා වේලාව:</strong>{" "}
+          <span className="text-slate-400 ml-1">
+            {new Date(meta.dateTime!).toLocaleString()}
+          </span>
+        </li>
+      )}
+      {hasGps && (
+        <li>
+          <strong>ස්ථානය (GPS):</strong>{" "}
+          <a
+            href={`https://www.google.com/maps?q=${meta.latitude},${meta.longitude}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-400 hover:underline ml-1"
+          >
+            {meta.latitude}, {meta.longitude} (Maps වලින් බලන්න)
+          </a>
+        </li>
+      )}
+      {hasSoftware && (
+        <li>
+          <strong>උපාංගය / මෘදුකාංගය:</strong>{" "}
+          <span className="text-slate-400 ml-1">{meta.software}</span>
+        </li>
+      )}
+    </ul>
+  );
+}
+
 function EvidenceLink({
   storageId,
   loadingText,
@@ -429,6 +493,15 @@ export default function AdminDashboard() {
                       loadingText={t.evidenceLinkLoading}
                       linkText={t.evidenceLinkText}
                     />
+                  </div>
+                )}
+
+                {comp.metadata && (
+                  <div className="mb-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                    <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
+                      <span>📍</span> ඡායාරූපයේ තොරතුරු (EXIF Metadata)
+                    </h3>
+                    <EvidenceMetadataPanel metadataJson={comp.metadata} />
                   </div>
                 )}
 

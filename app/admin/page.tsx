@@ -85,18 +85,37 @@ function isComplaintUnlocked(
   return true;
 }
 
+function LockedEvidencePlaceholder({ message }: { message: string }) {
+  return (
+    <div
+      className="bg-red-950/40 p-6 rounded-lg border border-red-900/60 text-center"
+      role="status"
+      aria-live="polite"
+    >
+      <p className="text-sm text-red-300 font-medium">🔒 {message}</p>
+    </div>
+  );
+}
+
 function EvidenceImage({
   storageId,
+  enabled,
   loadingText,
   linkText,
 }: {
   storageId: string;
+  enabled: boolean;
   loadingText: string;
   linkText: string;
 }) {
-  const url = useQuery(api.complaints.getImageUrl, {
-    storageId: storageId as Id<"_storage">,
-  });
+  const url = useQuery(
+    api.complaints.getImageUrl,
+    enabled ? { storageId: storageId as Id<"_storage"> } : "skip",
+  );
+
+  if (!enabled) {
+    return null;
+  }
 
   if (!url) {
     return <span className="text-slate-500 text-sm">{loadingText}</span>;
@@ -523,27 +542,45 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                {(selectedComplaint.evidence_path ||
-                  selectedComplaint.metadata) &&
-                  (isComplaintUnlocked(
+                {(() => {
+                  const complaintUnlocked = isComplaintUnlocked(
                     selectedComplaint._id,
                     decryptedTexts,
-                  ) ? (
+                  );
+                  const hasSensitiveEvidence = Boolean(
+                    selectedComplaint.evidence_path ||
+                      selectedComplaint.metadata,
+                  );
+
+                  if (!hasSensitiveEvidence) {
+                    return null;
+                  }
+
+                  if (!complaintUnlocked) {
+                    return (
+                      <LockedEvidencePlaceholder
+                        message={t.lockedEvidenceMessage}
+                      />
+                    );
+                  }
+
+                  return (
                     <>
-                      {selectedComplaint.evidence_path && (
+                      {selectedComplaint.evidence_path ? (
                         <div>
                           <h3 className="text-sm font-bold text-slate-400 mb-2">
                             {t.evidenceLinkText}
                           </h3>
                           <EvidenceImage
+                            enabled
                             storageId={selectedComplaint.evidence_path}
                             loadingText={t.evidenceLinkLoading}
                             linkText={t.evidenceLinkText}
                           />
                         </div>
-                      )}
+                      ) : null}
 
-                      {selectedComplaint.metadata && (
+                      {selectedComplaint.metadata ? (
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                           <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
                             <span>📍</span> {t.exifPanelTitle}
@@ -552,15 +589,10 @@ export default function AdminDashboard() {
                             metadata={selectedComplaint.metadata}
                           />
                         </div>
-                      )}
+                      ) : null}
                     </>
-                  ) : (
-                    <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center">
-                      <p className="text-xs text-red-400 font-medium">
-                        🔒 {t.lockedEvidenceMessage}
-                      </p>
-                    </div>
-                  ))}
+                  );
+                })()}
 
                 {selectedComplaint.reporter_reply && (
                   <div className="bg-emerald-900/30 p-4 rounded-lg border border-emerald-800/50">

@@ -146,7 +146,7 @@ export const translations = {
       blockchainNote:
         "*This complaint is recorded on the blockchain network so its contents cannot be altered.",
       caseKeyKeep: "Keep your secret Case Key safe:",
-      downloadReceipt: "Download digital evidence receipt (.txt)",
+      downloadReceipt: "Download submission receipt (PDF)",
       checkStatus: "Check complaint status",
       newReport: "Submit another report",
       linkOversight: "Public oversight dashboard",
@@ -325,7 +325,7 @@ export const translations = {
       blockchainNote:
         "*මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස Blockchain ජාලය මත සටහන් විය.",
       caseKeyKeep: "ඔබගේ රහස්‍ය Case Key ආරක්ෂිතව තබා ගන්න:",
-      downloadReceipt: "ඩිජිටල් සාක්ෂි රිසිට්පත Download කරගන්න (.txt)",
+      downloadReceipt: "පැමිණිලි රිසිට්පත බාගත කරන්න (PDF)",
       checkStatus: "පැමිණිල්ලේ තත්ත්වය පරීක්ෂා කරන්න",
       newReport: "නව තොරතුරක් යොමු කරන්න",
       linkOversight: "🔍 මහජන නිරීක්ෂණ පුවරුව (Public Oversight)",

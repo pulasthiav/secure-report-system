@@ -1,17 +1,11 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { LockKeyhole, Shield, ShieldCheck } from "lucide-react";
+import { Eye, LockKeyhole, Shield, ShieldCheck } from "lucide-react";
 import { useLanguage } from "../components/LanguageContext";
 
 const landingCopy = {
   en: {
-    navLinks: [
-      { label: "About", href: "#about" },
-      { label: "Security", href: "#security" },
-      { label: "Oversight", href: "/oversight" },
-      { label: "Contact", href: "#contact" },
-    ],
     badge: "Government-grade encrypted reporting portal",
     heading: "SecureReport System",
     subheading: "Secure information reporting",
@@ -25,12 +19,6 @@ const landingCopy = {
       "This is an official and secure channel for the Sri Lanka Digital Oversight Department. Every report is securely encrypted and verified before processing. Your data is safe.",
   },
   si: {
-    navLinks: [
-      { label: "පිළිබඳව", href: "#about" },
-      { label: "ආරක්ෂාව", href: "#security" },
-      { label: "නිරීක්ෂණය", href: "/oversight" },
-      { label: "සම්බන්ධ වන්න", href: "#contact" },
-    ],
     badge: "රජයේ මට්ටමේ සංකේතනය කළ වාර්තාකරණ ද්වාරය",
     heading: "SecureReport System",
     subheading: "ආරක්ෂිත තොරතුරු වාර්තාකරණය",
@@ -65,17 +53,13 @@ export default function Home() {
             </span>
           </Link>
 
-          <div className="hidden items-center gap-8 rounded-full border border-slate-700 bg-slate-950/70 px-8 py-3 text-sm font-semibold text-slate-300 md:flex">
-            {copy.navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="transition-colors hover:text-emerald-400"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+          <Link
+            href="/oversight"
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-full px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all shadow-md"
+          >
+            <Eye className="h-4 w-4" />
+            OVERSIGHT
+          </Link>
         </nav>
 
         <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:py-24">

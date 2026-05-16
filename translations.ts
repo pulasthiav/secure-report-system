@@ -2,43 +2,6 @@ export type Language = "en" | "si";
 
 export const translations = {
   en: {
-    home: {
-      headerTitle: "Secure Information Reporting",
-      headerSubtitle:
-        "AI technology automatically detects and redacts your personal information.",
-      descriptionLabel: "Description:",
-      evidenceLabel: "Evidence (Images):",
-      descriptionPlaceholder: "Enter description...",
-      imageWarning:
-        "Image authenticity will be manually verified by investigators.",
-      submitButton: "Submit Securely",
-      submitSubmitting: "Submitting...",
-      badgePgpEncrypted: "PGP Encrypted",
-      badgeAiPiiRedaction: "AI PII Redaction",
-      badgeExifStripped: "EXIF Stripped",
-      bottomButtonOversight: "Public Oversight Dashboard",
-      bottomButtonTrack: "Track Complaint Progress",
-      fileSelectedExif:
-        "— EXIF metadata will be removed and sent securely",
-      successTitle: "Success!",
-      successEvidenceTitle: "About image authenticity",
-      successEvidenceBody:
-        "The evidence photo you submitted will be manually verified by investigators. No AI tool can detect AI-generated photos with 100% accuracy; that responsibility belongs to human experts.",
-      blockchainVerified: "Blockchain Audit Trail Verified",
-      immutableHashLabel: "Immutable Hash (SHA-256 Proof):",
-      blockchainNote:
-        "*The contents of this complaint are recorded on the blockchain network so they cannot be altered.",
-      caseKeyKeep: "Keep your secret Case Key safe:",
-      downloadReceipt: "Download submission receipt (PDF)",
-      checkStatus: "Check complaint status",
-      submitNew: "Submit new report",
-      errorGeneric: "An error occurred. Please try again.",
-      statusPiiCheck: "AI is checking for personal data (PII)...",
-      statusStripMetadata: "Removing metadata from evidence file...",
-      statusUploadEvidence: "Securely storing evidence...",
-      statusEncrypt: "Encrypting data with PGP...",
-      statusSubmit: "Submitting to the system...",
-    },
     receipt: {
       receiptTitle: "SECURE COMPLAINT SUBMISSION RECEIPT",
       receiptDate: "Submission Date",
@@ -58,33 +21,6 @@ export const translations = {
       statusPendingValue: "Pending (Under Review)",
       statusInvestigatingValue: "Investigating",
       statusResolvedValue: "Resolved",
-    },
-    status: {
-      statusTitle: "Complaint Status",
-      statusSubtitle:
-        "Enter your confidential Case Key to check the investigation status.",
-      caseKeyPlaceholder: "CASE KEY",
-      checkButton: "Check Status",
-      backButton: "Back to Home Page",
-      searching: "Searching...",
-      notFound:
-        "The Case Key you entered is invalid or no complaint could be found.",
-      currentStatus: "Current Status",
-      statusPending: "Pending (Under Review)",
-      statusInvestigating: "Investigating",
-      statusResolved: "Resolved",
-      investigatorMessage: "Investigator Message",
-      noInvestigatorMessage: "No message from investigators yet.",
-      originalComplaint: "Your Original Complaint",
-      pgpEncryptedNotice:
-        "This data is securely encrypted with PGP technology. Only investigators can read it.",
-      replyToInvestigator: "Send a reply to the investigator:",
-      replyPlaceholder: "Type your message here...",
-      sendReply: "Send Message",
-      sendingReply: "Sending...",
-      lastReply: "Your last reply:",
-      toastReplySuccess: "Your message was sent successfully!",
-      toastReplyError: "Could not send the message!",
     },
     oversight: {
       oversightTitle: "Public Oversight Dashboard",
@@ -109,8 +45,7 @@ export const translations = {
     },
     admin: {
       title: "Investigator Admin Dashboard",
-      searchPlaceholder:
-        "Search complaints (e.g., bribery, theft)...",
+      searchPlaceholder: "Search complaints (e.g., bribery, theft)...",
       colComplaintId: "Complaint ID",
       colDescription: "Description",
       colCategory: "Category",
@@ -155,45 +90,88 @@ export const translations = {
       errorPrivateKeyInvalid:
         "Private Key error. Paste the full key without missing characters.",
       errorDecryptOldKey: "Locked with an older key (cannot decrypt with this key).",
+      exifPanelTitle: "Photo metadata (EXIF)",
+      metadataReadError: "Could not read metadata.",
+      metadataNone: "No EXIF data could be extracted from the photo.",
+      exifDate: "Date & time captured:",
+      exifGps: "Location (GPS):",
+      exifGpsMaps: "View on Maps",
+      exifSoftware: "Device / software:",
+    },
+    home: {
+      title: "Secure Reporting",
+      subtitle:
+        "AI automatically detects and redacts your personal information.",
+      descriptionLabel: "Description:",
+      descriptionPlaceholder: "Enter your description...",
+      evidenceLabel: "Evidence (camera only):",
+      cameraStarting: "Preparing camera...",
+      capturePhoto: "Take photo",
+      cancel: "Cancel",
+      evidencePreviewAlt: "Evidence preview",
+      photoReadyHint:
+        "Photo ready — EXIF stripped from file; metadata stored separately in DB only",
+      removePhotoRetake: "Remove photo and retake",
+      startCamera: "Start camera",
+      cameraHttpsRequired:
+        "Camera only works on HTTPS or localhost. Use a secure connection.",
+      cameraUnsupported: "This browser does not support camera access.",
+      cameraStartFailed:
+        "Could not start camera. Grant permission and try again.",
+      cameraNotReady: "Camera not ready yet. Wait a moment and try again.",
+      cameraCaptureFailed: "Could not process photo. Please try again.",
+      galleryDisabled:
+        "Gallery and file picker are disabled. Only your device camera is used.",
+      photoDisclaimer:
+        "Photo authenticity is manually verified by investigators.",
+      submit: "Submit securely",
+      submitting: "Submitting...",
+      statusPiiRedacting: "AI is checking for personal data (PII)...",
+      statusReadingExif: "Reading photo metadata...",
+      statusStrippingMetadata: "Stripping metadata from evidence file...",
+      statusUploadingEvidence: "Securely storing evidence...",
+      statusEncrypting: "Encrypting data with PGP...",
+      statusSubmitting: "Sending to the system...",
+      genericError: "An error occurred. Please try again.",
+      successTitle: "Success!",
+      photoVerifyTitle: "About photo authenticity",
+      photoVerifyBody:
+        "Evidence photos are manually verified by investigators. No AI tool can detect AI-generated images with 100% accuracy; human experts are responsible.",
+      blockchainVerified: "Blockchain Audit Trail Verified",
+      immutableHashLabel: "Immutable Hash (SHA-256 Proof):",
+      blockchainNote:
+        "*This complaint is recorded on the blockchain network so its contents cannot be altered.",
+      caseKeyKeep: "Keep your secret Case Key safe:",
+      downloadReceipt: "Download digital evidence receipt (.txt)",
+      checkStatus: "Check complaint status",
+      newReport: "Submit another report",
+      linkOversight: "Public oversight dashboard",
+      linkCheckStatus: "Check status of a previous complaint",
+    },
+    status: {
+      title: "Complaint status",
+      subtitle: "Enter your secret Case Key to view investigation status.",
+      checkButton: "Check status",
+      searching: "Searching...",
+      notFound: "Invalid Case Key or no matching complaint found.",
+      currentStatus: "Current status",
+      investigatorMessage: "Investigator message",
+      noInvestigatorMessage: "No message from investigators yet.",
+      yourComplaint: "Your original complaint",
+      encryptedNotice:
+        "This data is protected with PGP encryption. Only investigators can read it.",
+      replyLabel: "Reply to investigator:",
+      replyPlaceholder: "Type your message here...",
+      sendReply: "Send message",
+      sending: "Sending...",
+      lastReply: "Your last sent reply:",
+      backHome: "Back to home",
+      toastReplySuccess: "Your message was sent successfully!",
+      toastReplyError: "Could not send message.",
+      statusPendingReview: "Pending (under review)",
     },
   },
   si: {
-    home: {
-      headerTitle: "ආරක්ෂිත තොරතුරු වාර්තාකරණය",
-      headerSubtitle:
-        "කෘතිම බුද්ධි තාක්ෂණය මගින් ඔබගේ පෞද්ගලික තොරතුරු ස්වයංක්‍රීයව හඳුනාගෙන මකා දැමේ.",
-      descriptionLabel: "විස්තරය:",
-      evidenceLabel: "සාක්ෂි (ඡායාරූප/ගොනු):",
-      descriptionPlaceholder: "විස්තරය ඇතුළත් කරන්න...",
-      imageWarning:
-        "ඡායාරූපවල සත්‍යතාවය විමර්ශකයන් විසින් අතින් පරීක්ෂා කර තහවුරු කරනු ලැබේ.",
-      submitButton: "ආරක්ෂිතව යොමු කරන්න",
-      submitSubmitting: "යොමු කරමින් පවතී...",
-      badgePgpEncrypted: "සංකේතනය කළ",
-      badgeAiPiiRedaction: "පෞද්ගලික දත්ත සැඟවීම",
-      badgeExifStripped: "රූප යටි දත්ත ඉවත් කිරීම",
-      bottomButtonOversight: "මහජන නිරීක්ෂණ පුවරුව",
-      bottomButtonTrack: "පැමිණිල්ලේ ප්‍රගතිය සොයන්න",
-      fileSelectedExif: "— රූප යටි දත්ත ඉවත් කර ආරක්ෂිතව යවනු ලැබේ",
-      successTitle: "සාර්ථකයි!",
-      successEvidenceTitle: "ඡායාරූප සත්‍යතාව පිළිබඳව",
-      successEvidenceBody:
-        "ඔබ ඉදිරිපත් කළ සාක්ෂි ඡායාරූප විමර්ශකයන් විසින් අතින් පරීක්ෂා කර තහවුරු කරනු ලැබේ. කිසිම කෘතීම බුද්ධි මෙවලමකට 100% නිරවද්‍යව කෘතීම බුද්ධියෙන් නිර්මාණය කළ ඡායාරූප හඳුනාගත නොහැකි බැවින්, ඒ වගකීම මිනිස් විශේෂඥයන් සතුයි.",
-      blockchainVerified: "බ්ලොක්චේන් සටහන සත්‍යාපනය විය",
-      immutableHashLabel: "වෙනස් කළ නොහැකි හැළි සාක්ෂිය (SHA-256):",
-      blockchainNote:
-        "*මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස බ්ලොක්චේන් ජාලය මත සටහන් විය.",
-      caseKeyKeep: "ඔබගේ රහස්‍ය පැමිණිලි අංකය ආරක්ෂිතව තබා ගන්න:",
-      downloadReceipt: "පැමිණිලි රිසිට්පත බාගත කරන්න (PDF)",
-      checkStatus: "පැමිණිල්ලේ තත්ත්වය පරීක්ෂා කරන්න",
-      submitNew: "නව තොරතුරක් යොමු කරන්න",
-      errorGeneric: "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.",
-      statusPiiCheck: "පෞද්ගලික දත්ත පරීක්ෂා කරමින් පවතී...",
-      statusStripMetadata: "සාක්ෂි ගොනුවේ යටි දත්ත මකා දමමින් පවතී...",
-      statusUploadEvidence: "ආරක්ෂිතව සාක්ෂි ගබඩා කරමින් පවතී...",
-      statusEncrypt: "දත්ත සංකේතනය කරමින් පවතී...",
-      statusSubmit: "තොරතුරු පද්ධතියට යොමු කරමින් පවතී...",
-    },
     receipt: {
       receiptTitle: "ආරක්ෂිත පැමිණිලි ඉදිරිපත් කිරීමේ රිසිට්පත",
       receiptDate: "ඉදිරිපත් කළ දිනය",
@@ -213,33 +191,6 @@ export const translations = {
       statusPendingValue: "සමාලෝචනය වෙමින් පවතී",
       statusInvestigatingValue: "විමර්ශනය කරමින් පවතී",
       statusResolvedValue: "විසඳා ඇත",
-    },
-    status: {
-      statusTitle: "පැමිණිල්ලේ තත්ත්වය",
-      statusSubtitle:
-        "ඔබගේ රහස්‍ය Case Key අංකය ඇතුළත් කර විමර්ශන තත්ත්වය දැනගන්න.",
-      caseKeyPlaceholder: "CASE KEY",
-      checkButton: "තත්ත්වය පරීක්ෂා කරන්න",
-      backButton: "ආපසු ප්‍රධාන පිටුවට",
-      searching: "සොයමින් පවතී...",
-      notFound:
-        "ඔබ ඇතුළත් කළ Case Key අංකය වැරදියි හෝ පැමිණිල්ලක් සොයාගත නොහැක.",
-      currentStatus: "වත්මන් තත්ත්වය",
-      statusPending: "සමාලෝචනය වෙමින් පවතී",
-      statusInvestigating: "විමර්ශනය කරමින් පවතී",
-      statusResolved: "විසඳා ඇත",
-      investigatorMessage: "විමර්ශකයන්ගේ පණිවිඩය",
-      noInvestigatorMessage: "තවමත් විමර්ශකයන්ගෙන් පණිවිඩයක් ලැබී නොමැත.",
-      originalComplaint: "ඔබගේ මුල් පැමිණිල්ල",
-      pgpEncryptedNotice:
-        "මෙම දත්ත සංකේතන තාක්ෂණයෙන් ආරක්ෂිතව සංකේතනය කර ඇත. මෙය කියවිය හැක්කේ විමර්ශකයින්ට පමණි.",
-      replyToInvestigator: "විමර්ශකයාට පිළිතුරක් යවන්න:",
-      replyPlaceholder: "ඔබේ පණිවිඩය මෙතැන ටයිප් කරන්න...",
-      sendReply: "පණිවිඩය යවන්න",
-      sendingReply: "යවමින් පවතී...",
-      lastReply: "ඔබ යැවූ අවසන් පිළිතුර:",
-      toastReplySuccess: "ඔබේ පණිවිඩය සාර්ථකව යොමු කෙරුණා!",
-      toastReplyError: "පණිවිඩය යැවීමට නොහැකි විය!",
     },
     oversight: {
       oversightTitle: "නිරීක්ෂණ පුවරුව",
@@ -310,9 +261,102 @@ export const translations = {
         "පෞද්ගලික යතුරේ දෝෂයක්! අකුරු අඩුවක් නොමැතිව සම්පූර්ණ යතුර ඇතුළත් කරන්න.",
       errorDecryptOldKey:
         "පරණ යතුරකින් අගුළු දමා ඇත (මෙම යතුරෙන් විසඳිය නොහැක).",
+      exifPanelTitle: "ඡායාරූපයේ තොරතුරු (EXIF Metadata)",
+      metadataReadError: "Metadata කියවීමේ දෝෂයක් මතු විය.",
+      metadataNone: "ඡායාරූපයේ EXIF තොරතුරු ලබාගත නොහැකි විය.",
+      exifDate: "ලබාගත් දිනය හා වේලාව:",
+      exifGps: "ස්ථානය (GPS):",
+      exifGpsMaps: "Maps වලින් බලන්න",
+      exifSoftware: "උපාංගය / මෘදුකාංගය:",
+    },
+    home: {
+      title: "ආරක්ෂිත තොරතුරු වාර්තාකරණය",
+      subtitle:
+        "AI තාක්ෂණය මගින් ඔබගේ පෞද්ගලික තොරතුරු ස්වයංක්‍රීයව හඳුනාගෙන මකා දැමේ.",
+      descriptionLabel: "විස්තරය (Description):",
+      descriptionPlaceholder: "විස්තරය ඇතුළත් කරන්න...",
+      evidenceLabel: "සාක්ෂි (ඡායාරූප — කැමරාව පමණි):",
+      cameraStarting: "කැමරාව සූදානම් වෙමින් පවතී...",
+      capturePhoto: "📷 ඡායාරූපය ගන්න",
+      cancel: "අවලංගු",
+      evidencePreviewAlt: "සාක්ෂි පෙරදසුන",
+      photoReadyHint:
+        "✓ ඡායාරූපය සූදානම් — ගොනුවෙන් EXIF මකා DB වෙනම තොරතුරු පමණක් යවනු ලැබේ",
+      removePhotoRetake: "ඡායාරූපය ඉවත් කර නැවත ගන්න",
+      startCamera: "කැමරාව ආරම්භ කරන්න",
+      cameraHttpsRequired:
+        "කැමරාව HTTPS හෝ localhost මත පමණක් ක්‍රියා කරයි. ආරක්ෂිත සම්බන්ධතාවක් භාවිතා කරන්න.",
+      cameraUnsupported: "මෙම බ්‍රවුසරය කැමරා ප්‍රවේශයට සහය නොදක්වයි.",
+      cameraStartFailed:
+        "කැමරාව ආරම්භ කළ නොහැක. බ්‍රවුසරයේ කැමරා අවසරය ලබා දී නැවත උත්සාහ කරන්න.",
+      cameraNotReady:
+        "කැමරාව තවම සූදානම් නැත. ක්ෂණයක් රැඳී නැවත ඡායාරූපය ගන්න.",
+      cameraCaptureFailed:
+        "ඡායාරූපය සැකසීමට නොහැකි විය. නැවත උත්සාහ කරන්න.",
+      galleryDisabled:
+        "ගැලරිය හෝ ෆයල් පද්ධතියෙන් තෝරාගැනීම අවහිරයි. ඔබගේ උපාංගයේ කැමරාව පමණක් භාවිතා වේ.",
+      photoDisclaimer:
+        "⚠️ ඡායාරූප සත්‍යතාව investigators විසින් manually verify කෙරේ.",
+      submit: "ආරක්ෂිතව යොමු කරන්න",
+      submitting: "යොමු කරමින් පවතී...",
+      statusPiiRedacting:
+        "AI මගින් පෞද්ගලික දත්ත (PII) පරික්ෂා කරමින් පවතී...",
+      statusReadingExif: "ඡායාරූපයේ Metadata කියවමින් පවතී...",
+      statusStrippingMetadata:
+        "සාක්ෂි ගොනුවේ Metadata මකා දමමින් පවතී...",
+      statusUploadingEvidence: "ආරක්ෂිතව සාක්ෂි ගබඩා කරමින් පවතී...",
+      statusEncrypting: "PGP තාක්ෂණයෙන් දත්ත Encrypt කරමින් පවතී...",
+      statusSubmitting: "තොරතුරු පද්ධතියට යොමු කරමින් පවතී...",
+      genericError: "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.",
+      successTitle: "සාර්ථකයි!",
+      photoVerifyTitle: "📋 ඡායාරූප සත්‍යතාව පිළිබඳව",
+      photoVerifyBody:
+        "ඔබ ඉදිරිපත් කළ සාක්ෂි ඡායාරූප පරීක්ෂකවරුන් (Investigators) විසින් manually verify කෙරේ. කිසිම AI tool එකකට 100% නිරවද්‍යව AI-generated ඡායාරූප හඳුනාගත නොහැකි බැවින්, ඒ වගකීම මිනිස් විශේෂඥයන් සතුයි.",
+      blockchainVerified: "Blockchain Audit Trail Verified",
+      immutableHashLabel: "Immutable Hash (SHA-256 Proof):",
+      blockchainNote:
+        "*මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස Blockchain ජාලය මත සටහන් විය.",
+      caseKeyKeep: "ඔබගේ රහස්‍ය Case Key ආරක්ෂිතව තබා ගන්න:",
+      downloadReceipt: "ඩිජිටල් සාක්ෂි රිසිට්පත Download කරගන්න (.txt)",
+      checkStatus: "පැමිණිල්ලේ තත්ත්වය පරීක්ෂා කරන්න",
+      newReport: "නව තොරතුරක් යොමු කරන්න",
+      linkOversight: "🔍 මහජන නිරීක්ෂණ පුවරුව (Public Oversight)",
+      linkCheckStatus: "කලින් පැමිණිල්ලක් තිබේ නම් එහි තත්ත්වය බලන්න",
+    },
+    status: {
+      title: "පැමිණිල්ලේ තත්ත්වය",
+      subtitle:
+        "ඔබගේ රහස්‍ය Case Key අංකය ඇතුළත් කර විමර්ශන තත්ත්වය දැනගන්න.",
+      checkButton: "තත්ත්වය පරීක්ෂා කරන්න",
+      searching: "සොයමින් පවතී...",
+      notFound:
+        "ඔබ ඇතුළත් කළ Case Key අංකය වැරදියි හෝ පැමිණිල්ලක් සොයාගත නොහැක.",
+      currentStatus: "වත්මන් තත්ත්වය",
+      investigatorMessage: "විමර්ශකයන්ගේ පණිවිඩය",
+      noInvestigatorMessage: "තවමත් විමර්ශකයන්ගෙන් පණිවිඩයක් ලැබී නොමැත.",
+      yourComplaint: "ඔබගේ මුල් පැමිණිල්ල",
+      encryptedNotice:
+        "මෙම දත්ත PGP තාක්ෂණයෙන් ආරක්ෂිතව සංකේතනය (Encrypt) කර ඇත. මෙය කියවිය හැක්කේ විමර්ශකයින්ට පමණි.",
+      replyLabel: "විමර්ශකයාට පිළිතුරක් යවන්න:",
+      replyPlaceholder: "ඔබේ පණිවිඩය මෙතැන ටයිප් කරන්න...",
+      sendReply: "පණිවිඩය යවන්න",
+      sending: "යවමින් පවතී...",
+      lastReply: "✓ ඔබ යැවූ අවසන් පිළිතුර:",
+      backHome: "ආපසු ප්‍රධාන පිටුවට",
+      toastReplySuccess: "ඔබේ පණිවිඩය සාර්ථකව යොමු කෙරුණා!",
+      toastReplyError: "පණිවිඩය යැවීමට නොහැකි විය!",
+      statusPendingReview: "Pending (සමාලෝචනය වෙමින් පවතී)",
     },
   },
 } as const;
+
+export function getStatusPageLabel(
+  status: string | undefined,
+  lang: Language,
+): string {
+  if (!status) return translations[lang].status.statusPendingReview;
+  return getAdminStatusLabel(status, lang);
+}
 
 export function getAdminStatusLabel(
   status: string | undefined,
@@ -383,15 +427,7 @@ export function getStatusPageComplaintLabel(
   status: string | undefined,
   lang: Language,
 ): string {
-  const t = translations[lang].status;
-  switch (status) {
-    case "Resolved":
-      return t.statusResolved;
-    case "Investigating":
-      return t.statusInvestigating;
-    default:
-      return t.statusPending;
-  }
+  return getStatusPageLabel(status, lang);
 }
 
 export function getOversightStatusLabel(
@@ -408,4 +444,3 @@ export function getOversightStatusLabel(
       return t.statusPending;
   }
 }
-

@@ -5,13 +5,12 @@ import * as openpgp from "openpgp";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { useLanguage } from "../../components/LanguageContext";
 import { classifyFraudCategory } from "../../lib/classifyFraudCategory";
 import {
   getAdminStatusLabel,
   getLocalizedFraudCategory,
   translations,
-  type Language,
 } from "../../translations";
 
 type EvidenceExifMetadata = {
@@ -26,15 +25,16 @@ function EvidenceMetadataPanel({
 }: {
   metadata: EvidenceExifMetadata | string;
 }) {
+  const { language } = useLanguage();
+  const t = translations[language].admin;
+
   let meta: EvidenceExifMetadata;
   if (typeof metadata === "string") {
     try {
       meta = JSON.parse(metadata) as EvidenceExifMetadata;
     } catch {
       return (
-        <p className="text-xs text-red-400">
-          Metadata කියවීමේ දෝෂයක් මතු විය.
-        </p>
+        <p className="text-xs text-red-400">{t.metadataReadError}</p>
       );
     }
   } else {
@@ -46,18 +46,14 @@ function EvidenceMetadataPanel({
   const hasSoftware = Boolean(meta.software);
 
   if (!hasGps && !hasDate && !hasSoftware) {
-    return (
-      <p className="text-xs text-slate-500">
-        ඡායාරූපයේ EXIF තොරතුරු ලබාගත නොහැකි විය.
-      </p>
-    );
+    return <p className="text-xs text-slate-500">{t.metadataNone}</p>;
   }
 
   return (
     <ul className="text-sm text-slate-300 space-y-2 ml-6 list-disc">
       {hasDate && (
         <li>
-          <strong>ලබාගත් දිනය හා වේලාව:</strong>{" "}
+          <strong>{t.exifDate}</strong>{" "}
           <span className="text-slate-400 ml-1">
             {new Date(meta.dateTime!).toLocaleString()}
           </span>
@@ -65,20 +61,20 @@ function EvidenceMetadataPanel({
       )}
       {hasGps && (
         <li>
-          <strong>ස්ථානය (GPS):</strong>{" "}
+          <strong>{t.exifGps}</strong>{" "}
           <a
             href={`https://www.google.com/maps?q=${meta.latitude},${meta.longitude}`}
             target="_blank"
             rel="noreferrer"
             className="text-blue-400 hover:underline ml-1"
           >
-            {meta.latitude}, {meta.longitude} (Maps වලින් බලන්න)
+            {meta.latitude}, {meta.longitude} ({t.exifGpsMaps})
           </a>
         </li>
       )}
       {hasSoftware && (
         <li>
-          <strong>උපාංගය / මෘදුකාංගය:</strong>{" "}
+          <strong>{t.exifSoftware}</strong>{" "}
           <span className="text-slate-400 ml-1">{meta.software}</span>
         </li>
       )}
@@ -135,7 +131,7 @@ function statusBadgeClass(status: string | undefined): string {
 }
 
 export default function AdminDashboard() {
-  const [language, setLanguage] = useState<Language>("si");
+  const { language } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedComplaintId, setSelectedComplaintId] =
     useState<Id<"complaints"> | null>(null);
@@ -158,17 +154,6 @@ export default function AdminDashboard() {
   } | null>(null);
 
   const t = translations[language].admin;
-
-  useEffect(() => {
-    if (localStorage.getItem("lang") === "en") {
-      setLanguage("en");
-    }
-  }, []);
-
-  const handleLanguageChange = (newLang: Language) => {
-    localStorage.setItem("lang", newLang);
-    window.location.reload();
-  };
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
@@ -310,9 +295,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 p-8 relative">
-      <LanguageSwitcher language={language} onChange={handleLanguageChange} />
-
+    <div className="min-h-screen bg-slate-900 text-slate-200 p-8 relative pt-20">
       {toast && (
         <div className="fixed top-6 right-6 z-50 animate-fade-in transition-all duration-300">
           <div
@@ -553,7 +536,7 @@ export default function AdminDashboard() {
                 {selectedComplaint.metadata && (
                   <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                     <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
-                      <span>📍</span> ඡායාරූපයේ තොරතුරු (EXIF Metadata)
+                      <span>📍</span> {t.exifPanelTitle}
                     </h3>
                     <EvidenceMetadataPanel
                       metadata={selectedComplaint.metadata}

@@ -1,33 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { LanguageSwitcher } from "../../components/LanguageSwitcher";
-import {
-  getOversightStatusLabel,
-  translations,
-  type Language,
-} from "../../translations";
+import { useLanguage, useTranslations } from "../../components/LanguageContext";
+import { getOversightStatusLabel } from "../../translations";
 
 export default function OversightDashboard() {
-  const [language, setLanguage] = useState<Language>("si");
-
-  const t = translations[language].oversight;
+  const t = useTranslations().oversight;
+  const { language } = useLanguage();
   const logs = useQuery(api.complaints.getAllComplaints);
   const isLoading = logs === undefined;
-
-  useEffect(() => {
-    if (localStorage.getItem("lang") === "en") {
-      setLanguage("en");
-    }
-  }, []);
-
-  const handleLanguageChange = (newLang: Language) => {
-    localStorage.setItem("lang", newLang);
-    window.location.reload();
-  };
 
   const formatDate = (timestamp: number) =>
     new Date(timestamp).toLocaleString(language === "si" ? "si-LK" : "en-GB", {
@@ -39,9 +22,7 @@ export default function OversightDashboard() {
     });
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 relative">
-      <LanguageSwitcher language={language} onChange={handleLanguageChange} />
-
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 pt-20">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div>

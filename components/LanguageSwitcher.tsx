@@ -1,16 +1,19 @@
-import { type Language } from "../translations";
+"use client";
 
-type LanguageSwitcherProps = {
-  language: Language;
-  onChange: (newLang: Language) => void;
-};
+import { useLanguage } from "./LanguageContext";
 
-export function LanguageSwitcher({ language, onChange }: LanguageSwitcherProps) {
+export function LanguageSwitcher() {
+  const { language, setLanguage } = useLanguage();
+
   return (
-    <div className="fixed top-4 right-4 z-50 flex rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl shadow-slate-900/40 ring-1 ring-emerald-500/20">
+    <div
+      className="fixed top-4 right-4 z-[100] flex rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-xl shadow-slate-900/40 ring-1 ring-emerald-500/20"
+      role="group"
+      aria-label="Language"
+    >
       <button
         type="button"
-        onClick={() => onChange("si")}
+        onClick={() => setLanguage("si")}
         className={`px-4 py-2.5 text-sm font-semibold transition-all ${
           language === "si"
             ? "bg-emerald-500 text-slate-900 shadow-inner"
@@ -21,7 +24,7 @@ export function LanguageSwitcher({ language, onChange }: LanguageSwitcherProps) 
       </button>
       <button
         type="button"
-        onClick={() => onChange("en")}
+        onClick={() => setLanguage("en")}
         className={`px-4 py-2.5 text-sm font-semibold transition-all border-l border-slate-700 ${
           language === "en"
             ? "bg-emerald-500 text-slate-900 shadow-inner"

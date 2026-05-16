@@ -30,7 +30,6 @@ function EvidenceLink({ storageId }: { storageId: string }) {
 }
 
 export default function AdminDashboard() {
-  // Convex Real-time Query! (Supabase 'useEffect' වෙනුවට)
   const complaints = useQuery(api.complaints.getAllComplaints) || [];
   const updateComplaintStatus = useMutation(
     api.complaints.updateComplaintStatus,

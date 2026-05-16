@@ -22,7 +22,6 @@ export default function Home() {
     pgpText: string;
   } | null>(null);
 
-  // ─── Convex Mutations (Supabase වෙනුවට) ─────────────────────────────────
   const generateUploadUrl = useMutation(api.complaints.generateUploadUrl);
   const createComplaint = useMutation(api.complaints.createComplaint);
 

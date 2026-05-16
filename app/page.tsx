@@ -6,6 +6,7 @@ import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api"; // Convex API එක Import කරගත්තා
 import { redactPIIWithAI } from "./actions/redact-pii";
+import { useTranslations } from "../components/LanguageContext";
 import exifr from "exifr";
 
 type EvidenceExifPayload = {
@@ -16,6 +17,7 @@ type EvidenceExifPayload = {
 };
 
 export default function Home() {
+  const t = useTranslations().home;
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,14 +132,12 @@ export default function Home() {
     captureContextRef.current = {};
 
     if (!window.isSecureContext) {
-      setCameraError(
-        "කැමරාව HTTPS හෝ localhost මත පමණක් ක්‍රියා කරයි. ආරක්ෂිත සම්බන්ධතාවක් භාවිතා කරන්න.",
-      );
+      setCameraError(t.cameraHttpsRequired);
       return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("මෙම බ්‍රවුසරය කැමරා ප්‍රවේශයට සහය නොදක්වයි.");
+      setCameraError(t.cameraUnsupported);
       return;
     }
 
@@ -166,18 +166,14 @@ export default function Home() {
     } catch (err) {
       console.error("Camera start failed:", err);
       stopCamera();
-      setCameraError(
-        "කැමරාව ආරම්භ කළ නොහැක. බ්‍රවුසරයේ කැමරා අවසරය ලබා දී නැවත උත්සාහ කරන්න.",
-      );
+      setCameraError(t.cameraStartFailed);
     }
   };
 
   const capturePhoto = () => {
     const video = videoRef.current;
     if (!video || !videoReady || video.videoWidth === 0) {
-      setCameraError(
-        "කැමරාව තවම සූදානම් නැත. ක්ෂණයක් රැඳී නැවත ඡායාරූපය ගන්න.",
-      );
+      setCameraError(t.cameraNotReady);
       return;
     }
 
@@ -187,7 +183,7 @@ export default function Home() {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      setCameraError("ඡායාරූපය සැකසීමට නොහැකි විය. නැවත උත්සාහ කරන්න.");
+      setCameraError(t.cameraCaptureFailed);
       return;
     }
 
@@ -200,7 +196,7 @@ export default function Home() {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          setCameraError("ඡායාරූපය සැකසීමට නොහැකි විය. නැවත උත්සාහ කරන්න.");
+          setCameraError(t.cameraCaptureFailed);
           return;
         }
         const captured = new File([blob], `evidence_${Date.now()}.jpg`, {
@@ -414,21 +410,21 @@ ${receiptData.pgpText}
 
     try {
       // Step 1 — PII redaction
-      setStatusMessage("AI මගින් පෞද්ගලික දත්ත (PII) පරික්ෂා කරමින් පවතී...");
+      setStatusMessage(t.statusPiiRedacting);
       const safeDescription = await redactPIIWithAI(description);
 
       // Step 2 — Extract EXIF (DB only) → strip file → upload stripped bytes
       if (file) {
-        setStatusMessage("ඡායාරූපයේ Metadata කියවමින් පවතී...");
+        setStatusMessage(t.statusReadingExif);
         fileMetadataForDB = await extractExifMetadata(
           file,
           captureContextRef.current,
         );
 
-        setStatusMessage("සාක්ෂි ගොනුවේ Metadata මකා දමමින් පවතී...");
+        setStatusMessage(t.statusStrippingMetadata);
         const cleanFile = await stripMetadata(file);
 
-        setStatusMessage("ආරක්ෂිතව සාක්ෂි ගබඩා කරමින් පවතී...");
+        setStatusMessage(t.statusUploadingEvidence);
 
         // Convex Storage එකට යැවීම
         const postUrl = await generateUploadUrl();
@@ -445,7 +441,7 @@ ${receiptData.pgpText}
       }
 
       // Step 3 — PGP encrypt
-      setStatusMessage("PGP තාක්ෂණයෙන් දත්ත Encrypt කරමින් පවතී...");
+      setStatusMessage(t.statusEncrypting);
       const encryptedDescription = await encryptWithPGP(safeDescription);
 
       // Step 3.5 — Generate Immutable Hash & Set Receipt Data
@@ -462,7 +458,7 @@ ${receiptData.pgpText}
       });
 
       // Step 4 — Save to Convex Database
-      setStatusMessage("තොරතුරු පද්ධතියට යොමු කරමින් පවතී...");
+      setStatusMessage(t.statusSubmitting);
 
       await createComplaint({
         case_key: newCaseKey,
@@ -475,7 +471,7 @@ ${receiptData.pgpText}
       setDescription("");
       clearPhoto();
     } catch (err: any) {
-      setError(err.message || "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.");
+      setError(err.message || t.genericError);
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -484,30 +480,21 @@ ${receiptData.pgpText}
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 pt-20">
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         <h1 className="text-3xl font-bold text-slate-800 mb-2 text-center tracking-tight">
-          ආරක්ෂිත තොරතුරු වාර්තාකරණය
+          {t.title}
         </h1>
-        <p className="text-sm text-slate-500 mb-8 text-center">
-          AI තාක්ෂණය මගින් ඔබගේ පෞද්ගලික තොරතුරු ස්වයංක්‍රීයව හඳුනාගෙන මකා දැමේ.
-        </p>
+        <p className="text-sm text-slate-500 mb-8 text-center">{t.subtitle}</p>
 
         {successKey ? (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-8 text-center">
-            <h2 className="text-xl font-bold mb-3">සාර්ථකයි!</h2>
+            <h2 className="text-xl font-bold mb-3">{t.successTitle}</h2>
 
             {hasEvidence && (
               <div className="mb-6 p-4 rounded-xl text-sm border-2 bg-amber-50 border-amber-300 text-amber-800">
-                <p className="font-bold mb-1">📋 ඡායාරූප සත්‍යතාව පිළිබඳව</p>
-                <p>
-                  ඔබ ඉදිරිපත් කළ සාක්ෂි ඡායාරූප{" "}
-                  <strong>
-                    පරීක්ෂකවරුන් (Investigators) විසින් manually verify
-                  </strong>{" "}
-                  කෙරේ. කිසිම AI tool එකකට 100% නිරවද්‍යව AI-generated ඡායාරූප
-                  හඳුනාගත නොහැකි බැවින්, ඒ වගකීම මිනිස් විශේෂඥයන් සතුයි.
-                </p>
+                <p className="font-bold mb-1">{t.photoVerifyTitle}</p>
+                <p>{t.photoVerifyBody}</p>
               </div>
             )}
 
@@ -518,24 +505,21 @@ ${receiptData.pgpText}
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
-                  Blockchain Audit Trail Verified
+                  {t.blockchainVerified}
                 </p>
               </div>
               <p className="text-[9px] text-slate-400 mb-1 font-mono uppercase">
-                Immutable Hash (SHA-256 Proof):
+                {t.immutableHashLabel}
               </p>
               <p className="text-[10px] font-mono text-slate-300 break-all leading-tight bg-black/30 p-2 rounded border border-white/5">
                 {receiptData?.hash}
               </p>
               <p className="text-[9px] text-slate-500 mt-2 italic">
-                *මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස Blockchain ජාලය මත
-                සටහන් විය.
+                {t.blockchainNote}
               </p>
             </div>
 
-            <p className="text-sm mb-4 mt-6">
-              ඔබගේ රහස්‍ය <strong>Case Key</strong> ආරක්ෂිතව තබා ගන්න:
-            </p>
+            <p className="text-sm mb-4 mt-6">{t.caseKeyKeep}</p>
             <div className="bg-white px-6 py-4 rounded-lg border-2 border-emerald-400 font-mono text-3xl font-bold tracking-[0.2em] text-emerald-700 shadow-inner mb-6">
               {successKey}
             </div>
@@ -557,14 +541,14 @@ ${receiptData.pgpText}
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              ඩිජිටල් සාක්ෂි රිසිට්පත Download කරගන්න (.txt)
+              {t.downloadReceipt}
             </button>
 
             <Link
               href="/status"
               className="block w-full bg-slate-800 text-white text-center py-3 rounded-xl font-bold hover:bg-slate-900 transition-all shadow-md"
             >
-              පැමිණිල්ලේ තත්ත්වය පරීක්ෂා කරන්න
+              {t.checkStatus}
             </Link>
 
             <button
@@ -575,7 +559,7 @@ ${receiptData.pgpText}
               }}
               className="mt-4 text-sm text-emerald-600 underline font-medium"
             >
-              නව තොරතුරක් යොමු කරන්න
+              {t.newReport}
             </button>
           </div>
         ) : (
@@ -583,7 +567,7 @@ ${receiptData.pgpText}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  විස්තරය (Description):
+                  {t.descriptionLabel}
                 </label>
                 <textarea
                   required
@@ -591,13 +575,13 @@ ${receiptData.pgpText}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-700"
-                  placeholder="විස්තරය ඇතුළත් කරන්න..."
+                  placeholder={t.descriptionPlaceholder}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  සාක්ෂි (ඡායාරූප — කැමරාව පමණි):
+                  {t.evidenceLabel}
                 </label>
                 <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <video
@@ -614,7 +598,7 @@ ${receiptData.pgpText}
                     <div className="space-y-3">
                       {!videoReady && (
                         <p className="text-xs text-blue-600 text-center animate-pulse">
-                          කැමරාව සූදානම් වෙමින් පවතී...
+                          {t.cameraStarting}
                         </p>
                       )}
                       <div className="flex gap-2">
@@ -624,14 +608,14 @@ ${receiptData.pgpText}
                           disabled={!videoReady}
                           className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors"
                         >
-                          📷 ඡායාරූපය ගන්න
+                          {t.capturePhoto}
                         </button>
                         <button
                           type="button"
                           onClick={stopCamera}
                           className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-white transition-colors"
                         >
-                          අවලංගු
+                          {t.cancel}
                         </button>
                       </div>
                     </div>
@@ -640,19 +624,16 @@ ${receiptData.pgpText}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={previewUrl}
-                        alt="සාක්ෂි පෙරදසුන"
+                        alt={t.evidencePreviewAlt}
                         className="w-full rounded-lg border border-slate-300 aspect-video object-cover"
                       />
-                      <p className="text-xs text-slate-500">
-                        ✓ ඡායාරූපය සූදානම් — ගොනුවෙන් EXIF මකා DB වෙනම තොරතුරු
-                        පමණක් යවනු ලැබේ
-                      </p>
+                      <p className="text-xs text-slate-500">{t.photoReadyHint}</p>
                       <button
                         type="button"
                         onClick={clearPhoto}
                         className="w-full py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-white transition-colors"
                       >
-                        ඡායාරූපය ඉවත් කර නැවත ගන්න
+                        {t.removePhotoRetake}
                       </button>
                     </div>
                   ) : (
@@ -661,7 +642,7 @@ ${receiptData.pgpText}
                       onClick={startCamera}
                       className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors"
                     >
-                      කැමරාව ආරම්භ කරන්න
+                      {t.startCamera}
                     </button>
                   )}
 
@@ -671,13 +652,10 @@ ${receiptData.pgpText}
                     </p>
                   )}
 
-                  <p className="text-xs text-slate-500">
-                    ගැලරිය හෝ ෆයල් පද්ධතියෙන් තෝරාගැනීම අවහිරයි. ඔබගේ
-                    උපාංගයේ කැමරාව පමණක් භාවිතා වේ.
-                  </p>
+                  <p className="text-xs text-slate-500">{t.galleryDisabled}</p>
                 </div>
                 <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                  ⚠️ ඡායාරූප සත්‍යතාව investigators විසින් manually verify කෙරේ.
+                  {t.photoDisclaimer}
                 </p>
               </div>
 
@@ -696,7 +674,7 @@ ${receiptData.pgpText}
                     : "bg-blue-600 hover:bg-blue-700 active:scale-95"
                 }`}
               >
-                {isSubmitting ? "යොමු කරමින් පවතී..." : "ආරක්ෂිතව යොමු කරන්න"}
+                {isSubmitting ? t.submitting : t.submit}
               </button>
 
               {statusMessage && (
@@ -726,7 +704,7 @@ ${receiptData.pgpText}
                 href="/oversight"
                 className="flex items-center justify-center w-full px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all active:scale-95 text-sm mt-3 mb-3"
               >
-                🔍 මහජන නිරීක්ෂණ පුවරුව (Public Oversight)
+                {t.linkOversight}
               </Link>
               <Link
                 href="/status"
@@ -745,7 +723,7 @@ ${receiptData.pgpText}
                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
                 </svg>
-                කලින් පැමිණිල්ලක් තිබේ නම් එහි තත්ත්වය බලන්න
+                {t.linkCheckStatus}
               </Link>
             </div>
           </div>

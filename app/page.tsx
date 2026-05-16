@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
@@ -34,7 +34,7 @@ function getBrowserGeolocation(
     let settled = false;
     const finish = (value: { latitude: number; longitude: number } | null) => {
       if (settled) return;
-      setted = true;
+      settled = true;
       window.clearTimeout(timer);
       resolve(value);
     };
@@ -135,7 +135,7 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState("");
   const [successKey, setSuccessKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [hasEvidence, setHasEvidence] = useState(false);
   const [receiptData, setReceiptData] = useState<{
     caseKey: string;
@@ -288,7 +288,9 @@ export default function Home() {
           captureContextRef.current.latitude = pos.coords.latitude;
           captureContextRef.current.longitude = pos.coords.longitude;
         },
-        () => { /* GPS denied */ },
+        () => {
+          /* GPS denied */
+        },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       );
     }
@@ -382,12 +384,16 @@ export default function Home() {
           payload.longitude = Number(exif.longitude);
         }
 
-        const rawDate = exif.DateTimeOriginal ?? exif.CreateDate ?? exif.ModifyDate;
+        const rawDate =
+          exif.DateTimeOriginal ?? exif.CreateDate ?? exif.ModifyDate;
         if (rawDate) {
-          payload.dateTime = rawDate instanceof Date ? rawDate.toISOString() : String(rawDate);
+          payload.dateTime =
+            rawDate instanceof Date ? rawDate.toISOString() : String(rawDate);
         }
       }
-    } catch { /* No EXIF */ }
+    } catch {
+      /* No EXIF */
+    }
 
     if (captureFallback) {
       if (payload.latitude == null && captureFallback.latitude != null) {
@@ -401,14 +407,19 @@ export default function Home() {
       }
     }
 
-    if (payload.latitude == null && payload.longitude == null && !payload.dateTime) {
+    if (
+      payload.latitude == null &&
+      payload.longitude == null &&
+      !payload.dateTime
+    ) {
       return undefined;
     }
 
     return payload;
   };
 
-  const generateCaseKey = () => Math.random().toString(36).substring(2, 10).toUpperCase();
+  const generateCaseKey = () =>
+    Math.random().toString(36).substring(2, 10).toUpperCase();
 
   const PUBLIC_KEY = `-----BEGIN PGP PUBLIC KEY BLOCK-----
 xjMEagbCVhYJKwYBBAHaRw8BAQdAG/Suu3AI5UB2QMM/ZMFxuQUvlfGBaG7p
@@ -456,7 +467,11 @@ mGyXFZPq566yTQs=
             (blob) => {
               URL.revokeObjectURL(url);
               resolve(
-                blob ? new File([blob], "secure_evidence.jpg", { type: "image/jpeg" }) : originalFile,
+                blob
+                  ? new File([blob], "secure_evidence.jpg", {
+                      type: "image/jpeg",
+                    })
+                  : originalFile,
               );
             },
             "image/jpeg",
@@ -509,7 +524,10 @@ mGyXFZPq566yTQs=
 
       if (file) {
         setStatusMessage(t.statusReadingExif);
-        fileMetadataForDB = await extractExifMetadata(file, captureContextRef.current);
+        fileMetadataForDB = await extractExifMetadata(
+          file,
+          captureContextRef.current,
+        );
 
         if (!hasGpsCoordinates(fileMetadataForDB)) {
           setStatusMessage(t.statusGeolocationFallback);
@@ -536,7 +554,9 @@ mGyXFZPq566yTQs=
       setStatusMessage(t.statusEncrypting);
       const encryptedDescription = await encryptWithPGP(safeDescription);
 
-      const blockchainHash = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      const blockchainHash = Array.from(
+        crypto.getRandomValues(new Uint8Array(32)),
+      )
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
 
@@ -563,7 +583,7 @@ mGyXFZPq566yTQs=
     } catch (err: any) {
       setError(err.message || t.genericError);
       console.error(err);
-    } declare {
+    } finally {
       setIsSubmitting(false);
       setStatusMessage("");
     }
@@ -685,10 +705,17 @@ mGyXFZPq566yTQs=
         </section>
 
         {/* 🔒 Functional Form Section with IP Privacy Guard Integrated */}
-        <section id="submit-report" className="mx-auto w-full max-w-xl pb-20 pt-4">
+        <section
+          id="submit-report"
+          className="mx-auto w-full max-w-xl pb-20 pt-4"
+        >
           <div className="w-full rounded-2xl border border-slate-700 bg-[#1e293b] p-8 shadow-2xl shadow-black/30">
-            <h2 className="text-3xl font-bold text-white mb-2 text-center tracking-tight">{t.title}</h2>
-            <p className="text-sm text-slate-400 mb-4 text-center">{t.subtitle}</p>
+            <h2 className="text-3xl font-bold text-white mb-2 text-center tracking-tight">
+              {t.title}
+            </h2>
+            <p className="text-sm text-slate-400 mb-4 text-center">
+              {t.subtitle}
+            </p>
 
             {!successKey && (
               <div
@@ -844,7 +871,9 @@ mGyXFZPq566yTQs=
                             alt={t.evidencePreviewAlt}
                             className="w-full rounded-lg border border-slate-600 aspect-video object-cover"
                           />
-                          <p className="text-xs text-slate-500">{t.photoReadyHint}</p>
+                          <p className="text-xs text-slate-500">
+                            {t.photoReadyHint}
+                          </p>
                           <button
                             type="button"
                             onClick={clearPhoto}
@@ -869,7 +898,9 @@ mGyXFZPq566yTQs=
                         </p>
                       )}
 
-                      <p className="text-xs text-slate-500">{t.galleryDisabled}</p>
+                      <p className="text-xs text-slate-500">
+                        {t.galleryDisabled}
+                      </p>
                     </div>
                     <p className="text-xs text-amber-200 mt-2 bg-amber-950/40 px-3 py-2 rounded-lg border border-amber-500/40">
                       {t.photoDisclaimer}

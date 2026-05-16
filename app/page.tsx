@@ -1,12 +1,14 @@
 ﻿"use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Script from "next/script";
 import Link from "next/link";
 import { Eye, LockKeyhole, Shield, ShieldCheck } from "lucide-react";
 import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { redactPIIWithAI } from "./actions/redact-pii";
+import { verifyBotProtection } from "./actions/verify-bot";
 import { useLanguage, useTranslations } from "../components/LanguageContext";
 import type { Language } from "../translations";
 import { classifyFraudCategory } from "../lib/classifyFraudCategory";
@@ -135,6 +137,7 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState("");
   const [successKey, setSuccessKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const [hasEvidence, setHasEvidence] = useState(false);
   const [receiptData, setReceiptData] = useState<{
@@ -160,6 +163,17 @@ export default function Home() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [userIp, setUserIp] = useState("Fetching...");
+
+  useEffect(() => {
+    (window as unknown as { onTurnstileSuccess?: (token: string) => void })
+      .onTurnstileSuccess = (token: string) => {
+      setTurnstileToken(token);
+    };
+    return () => {
+      delete (window as unknown as { onTurnstileSuccess?: (token: string) => void })
+        .onTurnstileSuccess;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -511,8 +525,26 @@ mGyXFZPq566yTQs=
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!turnstileToken) {
+      setError("Please complete the security verification before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
+    setStatusMessage("Verifying security...");
+
+    const botCheck = await verifyBotProtection(turnstileToken);
+    if (!botCheck.success) {
+      setError(
+        botCheck.error ||
+          "Security verification failed. Please try again.",
+      );
+      setIsSubmitting(false);
+      setStatusMessage("");
+      return;
+    }
 
     const newCaseKey = generateCaseKey();
     let evidencePath = undefined;
@@ -591,6 +623,10 @@ mGyXFZPq566yTQs=
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        strategy="lazyOnload"
+      />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
 
@@ -910,6 +946,17 @@ mGyXFZPq566yTQs=
                   {error && (
                     <div className="text-red-300 text-sm bg-red-950/40 p-4 rounded-lg border border-red-500/40">
                       {error}
+                    </div>
+                  )}
+
+                  {!successKey && (
+                    <div className="flex justify-center my-4">
+                      <div
+                        className="cf-turnstile"
+                        data-sitekey="1x00000000000000000000AA"
+                        data-theme="dark"
+                        data-callback="onTurnstileSuccess"
+                      />
                     </div>
                   )}
 

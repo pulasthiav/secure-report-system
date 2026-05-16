@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useLanguage, useTranslations } from "../../components/LanguageContext";
-import { getAdminStatusLabel } from "../../translations";
+import { getOversightStatusLabel } from "../../translations";
 
 export default function OversightDashboard() {
   const t = useTranslations().oversight;
@@ -12,21 +12,30 @@ export default function OversightDashboard() {
   const logs = useQuery(api.complaints.getAllComplaints);
   const isLoading = logs === undefined;
 
-  const dateLocale = language === "si" ? "si-LK" : "en-GB";
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleString(language === "si" ? "si-LK" : "en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 pt-20">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">{t.title}</h1>
-            <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
+            <h1 className="text-2xl font-bold text-slate-800">
+              🔍 {t.oversightTitle}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">{t.oversightSubtitle}</p>
           </div>
           <Link
             href="/"
             className="bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all active:scale-95 shadow-sm"
           >
-            {t.back}
+            {t.backButton}
           </Link>
         </div>
 
@@ -44,7 +53,7 @@ export default function OversightDashboard() {
                   {t.colStatus}
                 </th>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase text-center">
-                  {t.colBlockchain}
+                  {t.colProof}
                 </th>
               </tr>
             </thead>
@@ -70,7 +79,7 @@ export default function OversightDashboard() {
                         : "N/A"}
                     </td>
                     <td className="p-4 text-sm text-slate-600">
-                      {new Date(log._creationTime).toLocaleString(dateLocale)}
+                      {formatDate(log._creationTime)}
                     </td>
                     <td className="p-4">
                       <span
@@ -82,7 +91,7 @@ export default function OversightDashboard() {
                               : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {getAdminStatusLabel(log.status, language)}
+                        {getOversightStatusLabel(log.status, language)}
                       </span>
                     </td>
                     <td className="p-4 text-center text-[18px]">✅</td>
@@ -97,18 +106,14 @@ export default function OversightDashboard() {
           )}
         </div>
 
-        <div className="mt-6 flex gap-4">
+        <div className="mt-6 flex gap-4 flex-col md:flex-row">
           <div className="flex-1 bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
-            <h4 className="text-emerald-700 font-bold text-sm">
-              {t.transparencyTitle}
-            </h4>
-            <p className="text-xs text-emerald-600 mt-1">{t.transparencyBody}</p>
+            <h4 className="text-emerald-700 font-bold text-sm">{t.card1Title}</h4>
+            <p className="text-xs text-emerald-600 mt-1">{t.card1Desc}</p>
           </div>
           <div className="flex-1 bg-blue-50 border border-blue-100 p-4 rounded-xl">
-            <h4 className="text-blue-700 font-bold text-sm">
-              {t.immutableTitle}
-            </h4>
-            <p className="text-xs text-blue-600 mt-1">{t.immutableBody}</p>
+            <h4 className="text-blue-700 font-bold text-sm">{t.card2Title}</h4>
+            <p className="text-xs text-blue-600 mt-1">{t.card2Desc}</p>
           </div>
         </div>
       </div>

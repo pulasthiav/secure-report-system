@@ -2,6 +2,47 @@ export type Language = "en" | "si";
 
 export const translations = {
   en: {
+    receipt: {
+      receiptTitle: "SECURE COMPLAINT SUBMISSION RECEIPT",
+      receiptDate: "Submission Date",
+      caseKeyLabel: "Confidential Case Key",
+      categoryLabel: "Fraud Category",
+      statusLabel: "Current Status",
+      securityNotice:
+        "IMPORTANT: Keep this Case Key secret. Lose it, and you cannot track your report.",
+      blockchainHashLabel: "Blockchain Evidence (SHA-256 Hash)",
+      pgpEncryptedLabel: "PGP Encrypted Message",
+      receiptIntro:
+        "This document is the digital proof of your complaint submission. Store it securely.",
+      receiptFooterAuto:
+        "* This receipt was generated automatically by the system.",
+      receiptFooterRights:
+        "* Even if the complaint is removed from the database, you may use this document to seek redress.",
+      statusPendingValue: "Pending (Under Review)",
+      statusInvestigatingValue: "Investigating",
+      statusResolvedValue: "Resolved",
+    },
+    oversight: {
+      oversightTitle: "Public Oversight Dashboard",
+      oversightSubtitle:
+        "Complaints received by the system and their progress are displayed here with full transparency.",
+      backButton: "Back",
+      colCaseRef: "CASE REFERENCE",
+      colDate: "DATE RECEIVED",
+      colStatus: "STATUS",
+      colProof: "BLOCKCHAIN PROOF",
+      card1Title: "Transparency",
+      card1Desc:
+        "Even though the content of the complaint is confidential, anyone can verify that it was successfully received by the system.",
+      card2Title: "Immutable",
+      card2Desc:
+        "Investigators cannot delete complaints, and every action performed is fully logged.",
+      loading: "Loading data...",
+      empty: "No complaints have been reported yet.",
+      statusPending: "Pending",
+      statusInvestigating: "Investigating",
+      statusResolved: "Resolved",
+    },
     admin: {
       title: "Investigator Admin Dashboard",
       searchPlaceholder:
@@ -130,26 +171,49 @@ export const translations = {
       toastReplyError: "Could not send message.",
       statusPendingReview: "Pending (under review)",
     },
-    oversight: {
-      title: "Public oversight dashboard",
-      subtitle:
-        "Complaints received by the system and their progress, shown transparently.",
-      back: "Back",
-      colCaseRef: "Case reference",
-      colDate: "Date received",
-      colStatus: "Status",
-      colBlockchain: "Blockchain proof",
-      loading: "Loading data...",
-      empty: "No complaints reported yet.",
-      transparencyTitle: "Transparency",
-      transparencyBody:
-        "While complaint content stays confidential, anyone can verify that it was received.",
-      immutableTitle: "Immutable",
-      immutableBody:
-        "Investigators cannot delete complaints; every action is logged.",
-    },
   },
   si: {
+    receipt: {
+      receiptTitle: "ආරක්ෂිත පැමිණිලි ඉදිරිපත් කිරීමේ රිසිට්පත",
+      receiptDate: "ඉදිරිපත් කළ දිනය",
+      caseKeyLabel: "රහස්‍ය පැමිණිලි අංකය (Case Key)",
+      categoryLabel: "වංචා වර්ගීකරණය",
+      statusLabel: "වත්මන් තත්ත්වය",
+      securityNotice:
+        "වැදගත්: මෙම පැමිණිලි අංකය රහසිගතව තබා ගන්න. මෙය අස්ථානගත වුවහොත් ප්‍රගතිය බැලිය නොහැක.",
+      blockchainHashLabel: "බ්ලොක්චේන් සාක්ෂිය (SHA-256 Hash)",
+      pgpEncryptedLabel: "සංකේතනය කළ පණිවිඩය",
+      receiptIntro:
+        "මෙම ලේඛනය ඔබගේ පැමිණිල්ලේ ඩිජිටල් සාක්ෂියයි. මෙය සුරක්ෂිතව තබා ගන්න.",
+      receiptFooterAuto:
+        "* මෙය පද්ධතියෙන් ස්වයංක්‍රීයව නිකුත් කරන ලද්දකි.",
+      receiptFooterRights:
+        "* දත්ත ගබඩාවෙන් මෙම පැමිණිල්ල මැකී ගියද, මෙම ලේඛනය හරහා ඔබට සාධාරණය ඉල්ලා සිටිය හැක.",
+      statusPendingValue: "සමාලෝචනය වෙමින් පවතී",
+      statusInvestigatingValue: "විමර්ශනය කරමින් පවතී",
+      statusResolvedValue: "විසඳා ඇත",
+    },
+    oversight: {
+      oversightTitle: "නිරීක්ෂණ පුවරුව",
+      oversightSubtitle:
+        "පද්ධතියට ලැබෙන පැමිණිලි සහ ඒවායේ ප්‍රගතිය විනිවිදභාවයෙන් යුතුව මෙහි දැක්වේ.",
+      backButton: "ආපසු",
+      colCaseRef: "CASE REFERENCE",
+      colDate: "ලැබුණු දිනය",
+      colStatus: "තත්ත්වය (STATUS)",
+      colProof: "BLOCKCHAIN PROOF",
+      card1Title: "විනිවිදභාවය (Transparency)",
+      card1Desc:
+        "පැමිණිල්ලේ අන්තර්ගතය රහසිගත වුවද, එය පද්ධතියට ලැබුණු බව ඕනෑම අයෙකුට තහවුරු කර ගත හැක.",
+      card2Title: "මකා දැමිය නොහැක (Immutable)",
+      card2Desc:
+        "විමර්ශකයින්ට පැමිණිලි මකා දැමිය නොහැකි අතර, සෑම ක්‍රියාවක්ම ලොග් (Log) වේ.",
+      loading: "දත්ත ලබාගනිමින් පවතී...",
+      empty: "තවමත් පැමිණිලි කිසිවක් වාර්තා වී නොමැත.",
+      statusPending: "පොරොත්තුවෙන්",
+      statusInvestigating: "විමර්ශනය කරමින්",
+      statusResolved: "විසඳා ඇත",
+    },
     admin: {
       title: "විමර්ශක පාලන පුවරුව",
       searchPlaceholder: "පැමිණිලි සොයන්න (උදා: හොරකම්, අල්ලස්)...",
@@ -284,24 +348,6 @@ export const translations = {
       toastReplyError: "පණිවිඩය යැවීමට නොහැකි විය!",
       statusPendingReview: "Pending (සමාලෝචනය වෙමින් පවතී)",
     },
-    oversight: {
-      title: "🔍 නිරීක්ෂණ පුවරුව (Public Oversight)",
-      subtitle:
-        "පද්ධතියට ලැබෙන පැමිණිලි සහ ඒවායේ ප්‍රගතිය විනිවිදභාවයෙන් යුතුව මෙහි දැක්වේ.",
-      back: "ආපසු",
-      colCaseRef: "Case Reference",
-      colDate: "ලැබුණු දිනය",
-      colStatus: "තත්ත්වය (Status)",
-      colBlockchain: "Blockchain Proof",
-      loading: "දත්ත ලබාගනිමින් පවතී...",
-      empty: "තවමත් පැමිණිලි කිසිවක් වාර්තා වී නොමැත.",
-      transparencyTitle: "විනිවිදභාවය (Transparency)",
-      transparencyBody:
-        "පැමිණිල්ලේ අන්තර්ගතය රහසිගත වුවද, එය පද්ධතියට ලැබුණු බව ඕනෑම අයෙකුට තහවුරු කර ගත හැක.",
-      immutableTitle: "මකා දැමිය නොහැක (Immutable)",
-      immutableBody:
-        "විමර්ශකයින්ට පැමිණිලි මකා දැමිය නොහැකි අතර, සෑම ක්‍රියාවක්ම ලොග් (Log) වේ.",
-    },
   },
 } as const;
 
@@ -361,5 +407,42 @@ export function getLocalizedFraudCategory(
   const entry = fraudCategoryLabels[category as FraudCategory];
   if (entry) return entry[lang];
   return category;
+}
+
+export function getLocalizedComplaintStatus(
+  status: string | undefined,
+  lang: Language,
+): string {
+  const t = translations[lang].receipt;
+  switch (status) {
+    case "Resolved":
+      return t.statusResolvedValue;
+    case "Investigating":
+      return t.statusInvestigatingValue;
+    default:
+      return t.statusPendingValue;
+  }
+}
+
+export function getStatusPageComplaintLabel(
+  status: string | undefined,
+  lang: Language,
+): string {
+  return getStatusPageLabel(status, lang);
+}
+
+export function getOversightStatusLabel(
+  status: string | undefined,
+  lang: Language,
+): string {
+  const t = translations[lang].oversight;
+  switch (status) {
+    case "Resolved":
+      return t.statusResolved;
+    case "Investigating":
+      return t.statusInvestigating;
+    default:
+      return t.statusPending;
+  }
 }
 

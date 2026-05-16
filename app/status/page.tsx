@@ -1,20 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useState } from "react";
 import Link from "next/link";
-
-// Supabase සම්බන්ධ කිරීම
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export default function CheckStatus() {
-  const [caseKey, setCaseKey] = useState("");
-  const [complaint, setComplaint] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const [caseKeyInput, setCaseKeyInput] = useState("");
+  const [activeCaseKey, setActiveCaseKey] = useState<string | null>(null);
   const [newReply, setNewReply] = useState("");
   const [isSending, setIsSending] = useState(false);
 
@@ -32,47 +25,29 @@ export default function CheckStatus() {
     }, 3000); // තත්පර 3ක් තියෙයි
   };
 
-  // Auto-Refresh (Live Update)
-  useEffect(() => {
-    let interval: any;
-    if (complaint && caseKey) {
-      interval = setInterval(async () => {
-        const { data, error } = await supabase
-          .from("complaints")
-          .select("*")
-          .eq("case_key", caseKey.trim().toUpperCase())
-          .single();
+  // ─── Convex Magic! (No more setInterval needed) ───────────────────────────
+  // activeCaseKey එකක් තියෙනවා නම් විතරක් Database එකෙන් Live Data ගන්නවා
+  const complaint = useQuery(
+    api.complaints.getComplaintByCaseKey,
+    activeCaseKey ? { case_key: activeCaseKey } : "skip",
+  );
 
-        if (data && !error) {
-          setComplaint(data);
-        }
-      }, 10000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [complaint, caseKey]);
+  const updateReporterReply = useMutation(api.complaints.updateReporterReply);
 
   // විමර්ශකයාට ආපහු reply එකක් යැවීම
   const sendReply = async () => {
-    if (!newReply.trim()) return;
+    if (!newReply.trim() || !complaint) return;
     setIsSending(true);
 
     try {
-      const { error } = await supabase
-        .from("complaints")
-        .update({ reporter_reply: newReply })
-        .eq("id", complaint.id);
+      await updateReporterReply({
+        id: complaint._id, // Convex වල ID එක තියෙන්නේ _id විදිහටයි
+        reporter_reply: newReply,
+      });
 
-      if (error) throw error;
-
-      // සාමාන්‍ය Alert එක වෙනුවට අලුත් Popup එක
       showToast("ඔබේ පණිවිඩය සාර්ථකව යොමු කෙරුණා!", "success");
-
-      setComplaint({ ...complaint, reporter_reply: newReply });
       setNewReply("");
     } catch (err: any) {
-      // Error එක ආවත් ලස්සන Popup එකෙන් පෙන්වයි
       showToast("පණිවිඩය යැවීමට නොහැකි විය!", "error");
       console.error(err);
     } finally {
@@ -80,30 +55,10 @@ export default function CheckStatus() {
     }
   };
 
-  const handleCheckStatus = async (e: React.FormEvent) => {
+  const handleCheckStatus = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setComplaint(null);
-
-    try {
-      const { data, error: fetchError } = await supabase
-        .from("complaints")
-        .select("*")
-        .eq("case_key", caseKey.trim().toUpperCase())
-        .single();
-
-      if (fetchError || !data) {
-        throw new Error(
-          "ඔබ ඇතුළත් කළ Case Key අංකය වැරදියි හෝ පැමිණිල්ලක් සොයාගත නොහැක.",
-        );
-      }
-
-      setComplaint(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+    if (caseKeyInput.trim()) {
+      setActiveCaseKey(caseKeyInput.trim().toUpperCase());
     }
   };
 
@@ -147,8 +102,8 @@ export default function CheckStatus() {
             <input
               type="text"
               required
-              value={caseKey}
-              onChange={(e) => setCaseKey(e.target.value)}
+              value={caseKeyInput}
+              onChange={(e) => setCaseKeyInput(e.target.value)}
               className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-700 text-center font-mono text-xl uppercase tracking-widest"
               placeholder="CASE KEY"
               maxLength={8}
@@ -157,23 +112,34 @@ export default function CheckStatus() {
 
           <button
             type="submit"
-            disabled={isLoading || !caseKey.trim()}
+            disabled={
+              !caseKeyInput.trim() ||
+              activeCaseKey === caseKeyInput.trim().toUpperCase()
+            }
             className={`w-full py-3 px-4 rounded-xl text-white font-bold shadow-md transition-all ${
-              isLoading
+              !caseKeyInput.trim()
                 ? "bg-slate-400 cursor-not-allowed"
                 : "bg-slate-800 hover:bg-slate-900 active:scale-95"
             }`}
           >
-            {isLoading ? "සොයමින් පවතී..." : "තත්ත්වය පරීක්ෂා කරන්න"}
+            තත්ත්වය පරීක්ෂා කරන්න
           </button>
         </form>
 
-        {error && (
-          <div className="mt-6 text-red-600 text-sm bg-red-50 p-4 rounded-lg border border-red-100 text-center">
-            {error}
+        {/* Loading / Error States (Convex Handles this beautifully) */}
+        {activeCaseKey && complaint === undefined && (
+          <div className="mt-6 text-blue-600 text-sm bg-blue-50 p-4 rounded-lg border border-blue-100 text-center animate-pulse">
+            සොයමින් පවතී...
           </div>
         )}
 
+        {activeCaseKey && complaint === null && (
+          <div className="mt-6 text-red-600 text-sm bg-red-50 p-4 rounded-lg border border-red-100 text-center">
+            ඔබ ඇතුළත් කළ Case Key අංකය වැරදියි හෝ පැමිණිල්ලක් සොයාගත නොහැක.
+          </div>
+        )}
+
+        {/* Result */}
         {complaint && (
           <div className="mt-8 space-y-4 animate-fade-in">
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">

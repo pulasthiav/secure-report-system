@@ -1,15 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useState } from "react";
 import * as openpgp from "openpgp";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+// සාක්ෂි (Evidence) වල URL එක ගන්න හදපු පොඩි Component එකක්
+function EvidenceLink({ storageId }: { storageId: string }) {
+  const url = useQuery(api.complaints.getImageUrl, {
+    storageId: storageId as Id<"_storage">,
+  });
+
+  if (!url)
+    return (
+      <span className="text-slate-500 text-sm">ලිංක් එක සූදානම් කරමින්...</span>
+    );
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="text-blue-400 hover:underline flex items-center"
+    >
+      📎 සාක්ෂි ගොනුව (Evidence) බලන්න
+    </a>
+  );
+}
 
 export default function AdminDashboard() {
-  const [complaints, setComplaints] = useState<any[]>([]);
+  // Convex Real-time Query! (Supabase 'useEffect' වෙනුවට)
+  const complaints = useQuery(api.complaints.getAllComplaints) || [];
+  const updateComplaintStatus = useMutation(
+    api.complaints.updateComplaintStatus,
+  );
+
   const [privateKeyInput, setPrivateKeyInput] = useState("");
   const [decryptedTexts, setDecryptedTexts] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
@@ -29,23 +55,6 @@ export default function AdminDashboard() {
     setTimeout(() => {
       setToast(null);
     }, 3000);
-  };
-
-  // Auto-Refresh (Live Updates) සඳහා
-  useEffect(() => {
-    fetchComplaints();
-    const interval = setInterval(() => {
-      fetchComplaints();
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchComplaints = async () => {
-    const { data, error } = await supabase
-      .from("complaints")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setComplaints(data);
   };
 
   // යතුරු යුගලයක් නිර්මාණය කිරීම
@@ -87,14 +96,14 @@ export default function AdminDashboard() {
               message,
               decryptionKeys: privKey,
             });
-            newDecrypted[comp.id] = decrypted;
+            newDecrypted[comp._id] = decrypted;
             successCount++;
           } catch (innerErr) {
-            newDecrypted[comp.id] =
+            newDecrypted[comp._id] =
               "⚠️ පරණ යතුරකින් ලොක් කර ඇත (මෙම යතුරෙන් අරින්න බැහැ)";
           }
         } else {
-          newDecrypted[comp.id] = comp.description;
+          newDecrypted[comp._id] = comp.description;
         }
       }
 
@@ -115,21 +124,23 @@ export default function AdminDashboard() {
     }
   };
 
-  // තත්ත්වය සහ රිප්ලයි එක යාවත්කාලීන කිරීම
-  const handleUpdate = async (id: string, status: string, reply: string) => {
-    const { error } = await supabase
-      .from("complaints")
-      .update({ status: status, investigator_reply: reply })
-      .eq("id", id);
-
-    if (error) {
-      showToast("Update වුණේ නැහැ! Error: " + error.message, "error");
-      console.error(error);
-    } else {
+  // තත්ත්වය සහ රිප්ලයි එක යාවත්කාලීන කිරීම (Convex Mutation)
+  const handleUpdate = async (
+    id: Id<"complaints">,
+    status: string,
+    reply: string,
+  ) => {
+    try {
+      await updateComplaintStatus({
+        id,
+        status,
+        investigator_reply: reply,
+      });
       showToast("යාවත්කාලීන කිරීම සාර්ථකයි!", "success");
+    } catch (err: any) {
+      showToast("Update වුණේ නැහැ! Error: " + err.message, "error");
+      console.error(err);
     }
-
-    fetchComplaints();
   };
 
   return (
@@ -210,7 +221,8 @@ export default function AdminDashboard() {
             2. පැමිණිලි කියවීම (Decryption)
           </h2>
           <p className="text-sm text-slate-400 mb-4">
-            ලොක් කර ඇති පැමිණිලි කියවීම සඳහා ඔබගේ Private Key එක පහතින් ඇතුළත් කරන්න.
+            ලොක් කර ඇති පැමිණිලි කියවීම සඳහා ඔබගේ Private Key එක පහතින් ඇතුළත්
+            කරන්න.
           </p>
           <textarea
             value={privateKeyInput}
@@ -234,9 +246,12 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-bold text-white mb-4">
             ලැබී ඇති පැමිණිලි
           </h2>
+          {complaints.length === 0 && (
+            <p className="text-slate-500">තාමත් පැමිණිලි කිසිවක් ලැබී නොමැත.</p>
+          )}
           {complaints.map((comp) => (
             <div
-              key={comp.id}
+              key={comp._id}
               className="bg-slate-800 p-6 rounded-xl border border-slate-700"
             >
               <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
@@ -244,7 +259,7 @@ export default function AdminDashboard() {
                   Key: {comp.case_key}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {new Date(comp.created_at).toLocaleString()}
+                  {new Date(comp._creationTime).toLocaleString()}
                 </span>
               </div>
 
@@ -252,15 +267,15 @@ export default function AdminDashboard() {
                 <h3 className="text-sm font-bold text-slate-400 mb-1">
                   පැමිණිල්ලේ විස්තරය:
                 </h3>
-                {decryptedTexts[comp.id] ? (
+                {decryptedTexts[comp._id] ? (
                   <div
                     className={`p-4 rounded font-medium whitespace-pre-wrap ${
-                      decryptedTexts[comp.id].includes("⚠️")
+                      decryptedTexts[comp._id].includes("⚠️")
                         ? "bg-red-950/50 text-red-400 border border-red-900"
                         : "bg-slate-900 text-green-400 border border-slate-700"
                     }`}
                   >
-                    {decryptedTexts[comp.id]}
+                    {decryptedTexts[comp._id]}
                   </div>
                 ) : (
                   <div className="bg-slate-950 p-4 rounded text-slate-500 font-mono text-xs break-all border border-slate-700">
@@ -271,13 +286,7 @@ export default function AdminDashboard() {
 
               {comp.evidence_path && (
                 <div className="mb-4 text-sm">
-                  <a
-                    href={`${supabaseUrl}/storage/v1/object/public/evidence/${comp.evidence_path}`}
-                    target="_blank"
-                    className="text-blue-400 hover:underline flex items-center"
-                  >
-                    📎 සාක්ෂි ගොනුව (Evidence) බලන්න
-                  </a>
+                  <EvidenceLink storageId={comp.evidence_path} />
                 </div>
               )}
 
@@ -293,16 +302,19 @@ export default function AdminDashboard() {
               )}
 
               {/* Status Update Form - Condition එකක් සහිතව */}
-              {decryptedTexts[comp.id] && !decryptedTexts[comp.id].includes("⚠️") && !decryptedTexts[comp.id].includes("BEGIN PGP MESSAGE") ? (
+              {decryptedTexts[comp._id] &&
+              !decryptedTexts[comp._id].includes("⚠️") &&
+              !decryptedTexts[comp._id].includes("BEGIN PGP MESSAGE") ? (
                 <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 animate-fade-in mt-4">
                   <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
-                    <span className="text-blue-500">✍️</span> තත්ත්වය යාවත්කාලීන කිරීම (Update Status)
+                    <span className="text-blue-500">✍️</span> තත්ත්වය යාවත්කාලීන
+                    කිරීම (Update Status)
                   </h3>
                   <form
                     onSubmit={(e: any) => {
                       e.preventDefault();
                       handleUpdate(
-                        comp.id,
+                        comp._id,
                         e.target.status.value,
                         e.target.reply.value,
                       );
@@ -341,7 +353,8 @@ export default function AdminDashboard() {
                 /* Decrypt කරලා නැත්නම් පෙන්වන කොටස */
                 <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center mt-4">
                   <p className="text-xs text-red-400 font-medium">
-                    🔒 පණිවිඩය යැවීමට සහ තත්ත්වය යාවත්කාලීන කිරීමට ප්‍රථම, ඉහළින් ඔබගේ Private Key එක ලබාදී පැමිණිල්ල Unlock කරන්න.
+                    🔒 පණිවිඩය යැවීමට සහ තත්ත්වය යාවත්කාලීන කිරීමට ප්‍රථම,
+                    ඉහළින් ඔබගේ Private Key එක ලබාදී පැමිණිල්ල Unlock කරන්න.
                   </p>
                 </div>
               )}

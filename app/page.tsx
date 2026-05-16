@@ -1,13 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import * as openpgp from "openpgp";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api"; // Convex API එක Import කරගත්තා
 
 export default function Home() {
   const [description, setDescription] = useState("");
@@ -19,7 +16,15 @@ export default function Home() {
   const [hasEvidence, setHasEvidence] = useState(false);
 
   // රිසිට් පත සඳහා දත්ත ගබඩා කිරීමට
-  const [receiptData, setReceiptData] = useState<{caseKey: string, hash: string, pgpText: string} | null>(null);
+  const [receiptData, setReceiptData] = useState<{
+    caseKey: string;
+    hash: string;
+    pgpText: string;
+  } | null>(null);
+
+  // ─── Convex Mutations (Supabase වෙනුවට) ─────────────────────────────────
+  const generateUploadUrl = useMutation(api.complaints.generateUploadUrl);
+  const createComplaint = useMutation(api.complaints.createComplaint);
 
   const generateCaseKey = () =>
     Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -70,12 +75,6 @@ Output: "mama [REDACTED] mage wayasa [REDACTED] mag phone num ek [REDACTED] mama
 
 Input:  "mama kalindu mage yaluwa yahanuth dakka boc eka ehapatte kade krnne"
 Output: "mama [REDACTED] mage yaluwa [REDACTED] yahanuth dakka [REDACTED]"
-
-Input:  "dekka manussayekta pihiyakin aninaw man ashan inne negombo mahaiyawe station eka laga meka une me dan"
-Output: "dekka manussayekta pihiyakin aninaw man [REDACTED] inne [REDACTED] meka une me dan"
-
-Input:  "mama ratnapura inne mage loku ayya nimal dakka meya wage deyak"
-Output: "mama [REDACTED] inne mage loku ayya [REDACTED] dakka meya wage deyak"
 
 Return ONLY the redacted Singlish text. No explanation. No English translation.`,
             },
@@ -164,7 +163,7 @@ mGyXFZPq566yTQs=
   // ─── Receipt Download Function ────────────────────────────────────────────
   const downloadReceipt = () => {
     if (!receiptData) return;
-    
+
     const content = `===================================================
 SECURE-REPORT: DIGITAL EVIDENCE RECEIPT
 ===================================================
@@ -201,27 +200,29 @@ ${receiptData.pgpText}
     setError(null);
 
     const newCaseKey = generateCaseKey();
-    let evidencePath = null;
+    let evidencePath = undefined;
 
     try {
       // Step 1 — PII redaction
       setStatusMessage("AI මගින් පෞද්ගලික දත්ත (PII) පරික්ෂා කරමින් පවතී...");
       const safeDescription = await redactPIIWithAI(description);
 
-      // Step 2 — Metadata strip + upload
+      // Step 2 — Metadata strip + upload via Convex
       if (file) {
         setStatusMessage("සාක්ෂි ගොනුවේ Metadata මකා දමමින් පවතී...");
         const cleanFile = await stripMetadata(file);
 
         setStatusMessage("ආරක්ෂිතව සාක්ෂි ගබඩා කරමින් පවතී...");
-        const fileExt = cleanFile.name.split(".").pop();
-        const fileName = `${newCaseKey}_${Math.random()}.${fileExt}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("evidence")
-          .upload(fileName, cleanFile);
 
-        if (uploadError) throw uploadError;
-        evidencePath = uploadData.path;
+        // Convex Storage එකට යැවීම
+        const postUrl = await generateUploadUrl();
+        const result = await fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": cleanFile.type },
+          body: cleanFile,
+        });
+        const { storageId } = await result.json();
+        evidencePath = storageId;
         setHasEvidence(true);
       } else {
         setHasEvidence(false);
@@ -232,26 +233,26 @@ ${receiptData.pgpText}
       const encryptedDescription = await encryptWithPGP(safeDescription);
 
       // Step 3.5 — Generate Immutable Hash & Set Receipt Data
-      const blockchainHash = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-        
+      const blockchainHash = Array.from(
+        crypto.getRandomValues(new Uint8Array(32)),
+      )
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
       setReceiptData({
         caseKey: newCaseKey,
         hash: blockchainHash,
-        pgpText: encryptedDescription
+        pgpText: encryptedDescription,
       });
 
-      // Step 4 — Save to database
+      // Step 4 — Save to Convex Database
       setStatusMessage("තොරතුරු පද්ධතියට යොමු කරමින් පවතී...");
-      const { error: dbError } = await supabase.from("complaints").insert([
-        {
-          case_key: newCaseKey,
-          description: encryptedDescription,
-          evidence_path: evidencePath,
-        },
-      ]);
 
-      if (dbError) throw dbError;
+      await createComplaint({
+        case_key: newCaseKey,
+        description: encryptedDescription,
+        evidence_path: evidencePath,
+      });
 
       setSuccessKey(newCaseKey);
       setDescription("");
@@ -287,9 +288,8 @@ ${receiptData.pgpText}
                   <strong>
                     පරීක්ෂකවරුන් (Investigators) විසින් manually verify
                   </strong>{" "}
-                  කෙරේ. කිසිම AI tool එකකට 100% නිරවද්‍යව AI-generated
-                  ඡායාරූප හඳුනාගත නොහැකි බැවින්, ඒ වගකීම මිනිස් විශේෂඥයන්
-                  සතුයි.
+                  කෙරේ. කිසිම AI tool එකකට 100% නිරවද්‍යව AI-generated ඡායාරූප
+                  හඳුනාගත නොහැකි බැවින්, ඒ වගකීම මිනිස් විශේෂඥයන් සතුයි.
                 </p>
               </div>
             )}
@@ -300,14 +300,19 @@ ${receiptData.pgpText}
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Blockchain Audit Trail Verified</p>
+                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                  Blockchain Audit Trail Verified
+                </p>
               </div>
-              <p className="text-[9px] text-slate-400 mb-1 font-mono uppercase">Immutable Hash (SHA-256 Proof):</p>
+              <p className="text-[9px] text-slate-400 mb-1 font-mono uppercase">
+                Immutable Hash (SHA-256 Proof):
+              </p>
               <p className="text-[10px] font-mono text-slate-300 break-all leading-tight bg-black/30 p-2 rounded border border-white/5">
                 {receiptData?.hash}
               </p>
               <p className="text-[9px] text-slate-500 mt-2 italic">
-                *මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස Blockchain ජාලය මත සටහන් විය.
+                *මෙම පැමිණිල්ලේ අන්තර්ගතය වෙනස් කළ නොහැකි ලෙස Blockchain ජාලය මත
+                සටහන් විය.
               </p>
             </div>
 
@@ -318,13 +323,22 @@ ${receiptData.pgpText}
               {successKey}
             </div>
 
-            {/* 👇 අලුත් Download රිසිට් බට්න් එක 👇 */}
             <button
               onClick={downloadReceipt}
               className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
               </svg>
               ඩිජිටල් සාක්ෂි රිසිට්පත Download කරගන්න (.txt)
             </button>
@@ -335,12 +349,12 @@ ${receiptData.pgpText}
             >
               පැමිණිල්ලේ තත්ත්වය පරීක්ෂා කරන්න
             </Link>
-            
+
             <button
               onClick={() => {
                 setSuccessKey(null);
                 setHasEvidence(false);
-                setReceiptData(null); // Reset receipt data
+                setReceiptData(null);
               }}
               className="mt-4 text-sm text-emerald-600 underline font-medium"
             >
@@ -427,18 +441,28 @@ ${receiptData.pgpText}
             </form>
 
             <div className="pt-6 border-t border-slate-100">
-              <Link 
-                href="/oversight" 
+              <Link
+                href="/oversight"
                 className="flex items-center justify-center w-full px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all active:scale-95 text-sm mt-3 mb-3"
               >
                 🔍 මහජන නිරීක්ෂණ පුවරුව (Public Oversight)
               </Link>
-              <Link 
-                href="/status" 
+              <Link
+                href="/status"
                 className="flex items-center justify-center w-full px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 text-sm"
               >
-                <svg className="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-4 h-4 mr-2 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
                 කලින් පැමිණිල්ලක් තිබේ නම් එහි තත්ත්වය බලන්න
               </Link>

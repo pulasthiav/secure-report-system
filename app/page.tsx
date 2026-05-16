@@ -89,10 +89,13 @@ Return ONLY the redacted Singlish text. No explanation. No English translation.`
     );
 
     const data = await response.json();
-    const cleaned = data.choices[0].message.content.trim();
+    
+    const aiContent = data?.choices?.[0]?.message?.content;
+    const cleaned = aiContent ? aiContent.trim() : text.trim();
+
     return cleaned
       .replace(/^Output:\s*/i, "")
-      .replace(/^"|"$|`/g, "")
+      .replace(/^"|"$/g, "")
       .trim();
   };
 

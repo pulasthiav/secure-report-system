@@ -6,7 +6,7 @@ import { api } from "../../convex/_generated/api"; // Convex API එක ගත�
 
 export default function OversightDashboard() {
   // Convex Magic: තත්‍ය කාලීනව (Real-time) කිසිම useEffect/setInterval එකක් නැතුව දත්ත ලයිව් ලබාගනී
-  const logs = useQuery(api.complaints.getAllComplaints);
+  const logs = useQuery(api.complaints.getPublicComplaintLogs);
   const isLoading = logs === undefined;
 
   return (

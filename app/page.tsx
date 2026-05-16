@@ -8,6 +8,7 @@ import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api"; // Convex API α╢æα╢Ü Import α╢Üα╢╗α╢£α╢¡α╖èα╢¡α╖Å
 import { redactPIIWithAI } from "./actions/redact-pii";
 import { useLanguage, useTranslations } from "../components/LanguageContext";
+import type { Language } from "../translations";
 import { classifyFraudCategory } from "../lib/classifyFraudCategory";
 import { generateReceiptPdf } from "../lib/generateReceiptPdf";
 import exifr from "exifr";
@@ -65,6 +66,13 @@ function hasGpsCoordinates(meta: EvidenceExifPayload | undefined): boolean {
   );
 }
 
+function getIpPrivacyGuardNotice(lang: Language, ip: string): string {
+  if (lang === "si") {
+    return `🔒 රහස්‍යතා ආරක්ෂණය: ඔබගේ IP ලිපිනය ${ip} වේ. අපගේ Zero-Logs තාක්ෂණය මඟින් මෙම IP එක ස්වයංක්‍රීයවම ඉවත් කරයි (Scrub). මෙය කිසිසේත්ම අපගේ Convex ඩේටාබේස් හි තැන්පත් නොවේ.`;
+  }
+  return `🔒 Privacy Guard: Your Public IP is ${ip}. Our Zero-Logs architecture automatically SCRUBS this IP. It is never transmitted or stored in our Convex database.`;
+}
+
 async function applyGeolocationFallback(
   metadata: EvidenceExifPayload | undefined,
 ): Promise<EvidenceExifPayload | undefined> {
@@ -119,6 +127,34 @@ export default function Home() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const [userIp, setUserIp] = useState("Fetching...");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPublicIp = async () => {
+      try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) {
+          throw new Error("IP lookup failed");
+        }
+        const data = (await response.json()) as { ip?: string };
+        if (!cancelled) {
+          setUserIp(data.ip?.trim() || "Unavailable");
+        }
+      } catch {
+        if (!cancelled) {
+          setUserIp("Unavailable");
+        }
+      }
+    };
+
+    void fetchPublicIp();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -619,7 +655,20 @@ mGyXFZPq566yTQs=
         <section id="submit-report" className="mx-auto w-full max-w-xl pb-20 pt-4">
           <div className="w-full rounded-2xl border border-slate-700 bg-[#1e293b] p-8 shadow-2xl shadow-black/30">
             <h2 className="text-3xl font-bold text-white mb-2 text-center tracking-tight">{t.title}</h2>
-            <p className="text-sm text-slate-400 mb-8 text-center">{t.subtitle}</p>
+            <p className="text-sm text-slate-400 mb-4 text-center">{t.subtitle}</p>
+
+            {!successKey && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-6 flex gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 shadow-inner shadow-emerald-950/20"
+              >
+                <span className="mt-1 inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" />
+                <p className="text-[11px] leading-relaxed text-emerald-100/95 sm:text-xs">
+                  {getIpPrivacyGuardNotice(language, userIp)}
+                </p>
+              </div>
+            )}
 
             {successKey ? (
           <div className="border border-emerald-500/40 bg-emerald-950/40 text-emerald-100 rounded-xl p-8 text-center">

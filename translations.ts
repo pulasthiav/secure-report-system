@@ -45,8 +45,7 @@ export const translations = {
     },
     admin: {
       title: "Investigator Admin Dashboard",
-      searchPlaceholder:
-        "Search complaints (e.g., bribery, theft)...",
+      searchPlaceholder: "Search complaints (e.g., bribery, theft)...",
       colComplaintId: "Complaint ID",
       colDescription: "Description",
       colCategory: "Category",
@@ -445,4 +444,3 @@ export function getOversightStatusLabel(
       return t.statusPending;
   }
 }
-

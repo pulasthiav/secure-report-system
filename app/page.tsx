@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
-import { api } from "../convex/_generated/api"; // Convex API එක Import කරගත්තා
+import { api } from "../convex/_generated/api";
+import { redactPIIWithAI } from "./actions/ai";
+import exifr from "exifr";
+
+type EvidenceExifPayload = {
+  latitude?: number;
+  longitude?: number;
+  dateTime?: string;
+  software?: string;
+};
 
 export default function Home() {
   const [description, setDescription] = useState("");
@@ -13,6 +22,7 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState("");
   const [successKey, setSuccessKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
   const [hasEvidence, setHasEvidence] = useState(false);
 
   // රිසිට් පත සඳහා දත්ත ගබඩා කිරීමට
@@ -25,88 +35,272 @@ export default function Home() {
   const generateUploadUrl = useMutation(api.complaints.generateUploadUrl);
   const createComplaint = useMutation(api.complaints.createComplaint);
 
-  const generateCaseKey = () =>
-    Math.random().toString(36).substring(2, 10).toUpperCase();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const captureContextRef = useRef<EvidenceExifPayload>({});
+  const previewUrlRef = useRef<string | null>(null);
 
-  // ─── PII Redaction via Groq ───────────────────────────────────────────────
-  const redactPIIWithAI = async (text: string): Promise<string> => {
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    const video = videoRef.current;
+    if (video) {
+      video.onloadedmetadata = null;
+      video.srcObject = null;
+    }
+    setVideoReady(false);
+    setCameraActive(false);
+  }, []);
+
+  const attachStreamToVideo = useCallback(async (stream: MediaStream) => {
+    const video = videoRef.current;
+    if (!video) return false;
+
+    video.srcObject = stream;
     try {
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are a privacy filter for a Singlish (Sinhala + English mixed) whistleblower system. 
-Your ONLY job is to protect the identity of the REPORTER and their WITNESSES. 
+      await video.play();
+    } catch {
+      return false;
+    }
 
-WHAT TO REDACT (replace with [REDACTED]):
-- Reporter's name (words after "mama" or "man" that are names) → e.g. "mama pulasthi" → "mama [REDACTED]"
-- Reporter's age → e.g. "wayasa 20", "age 25" → "wayasa [REDACTED]"  
-- Reporter's phone/contact → e.g. "0767763425", "0771234567" → "[REDACTED]"
-- Witness names → anyone the reporter personally knows → e.g. "mage yaluwa kamal", "smoka", "lean" → "mage yaluwa [REDACTED]"
-- Reporter's location → e.g. "inne negombo", "vatenne galle", "inna thana colombo" → "inne [REDACTED]"
-- Reporter's workplace/job → e.g. "boc eka ehapatte kade krnne", "job eka keels" → "[REDACTED]"
-- Any detail that could identify WHO IS REPORTING or WHERE THEY ARE
+    if (video.videoWidth > 0) {
+      setVideoReady(true);
+      return true;
+    }
 
-WHAT TO KEEP (do NOT redact):
-- The ACCUSED person's name → e.g. "anura kiyla amathi", "kapila" (criminal being reported)
-- The VICTIM (if not the reporter) → e.g. "manussayekta", "lamayata"
-- Crime location → e.g. "maharagama boc", "colombo fort station" (where crime happened)
-- The crime itself → e.g. "salli horakam", "allasal", "pihiyakin aninaw"
-- General time references → e.g. "eya", "me dan", "last week"
+    return await new Promise<boolean>((resolve) => {
+      const onReady = () => {
+        video.onloadedmetadata = null;
+        const ready = video.videoWidth > 0;
+        setVideoReady(ready);
+        resolve(ready);
+      };
+      video.onloadedmetadata = onReady;
+    });
+  }, []);
 
-SINGLISH RULES:
-- Names are often lowercase: "pulasthi", "kasun", "smoka" — still redact if reporter/witness
-- "mama" or "man" = I/me = the reporter
-- Phone numbers: any 10-digit number starting with 07 → REDACT
-- Location patterns: "inne [place]", "vatenne [place]", "inna thana [place]" → REDACT the location
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, [stopCamera]);
 
-EXAMPLES:
-Input:  "mama pulasthi mage wayasa 20 mag phone num ek 0767763425 mama dakka anura kiyla amathi kenek maharagama boc eken salli horakam krnawa"
-Output: "mama [REDACTED] mage wayasa [REDACTED] mag phone num ek [REDACTED] mama dakka anura kiyla amathi kenek maharagama boc eken salli horakam krnawa"
+  useEffect(() => {
+    const stream = streamRef.current;
+    if (!cameraActive || !stream) return;
+    void attachStreamToVideo(stream);
+  }, [cameraActive, attachStreamToVideo]);
 
-Input:  "mama kalindu mage yaluwa yahanuth dakka boc eka ehapatte kade krnne"
-Output: "mama [REDACTED] mage yaluwa [REDACTED] yahanuth dakka [REDACTED]"
+  const requestCameraStream = async (): Promise<MediaStream> => {
+    const attempts: MediaStreamConstraints[] = [
+      { video: { facingMode: { ideal: "environment" } }, audio: false },
+      { video: { facingMode: "user" }, audio: false },
+      { video: true, audio: false },
+    ];
 
-Return ONLY the redacted Singlish text. No explanation. No English translation.`,
-              },
-              {
-                role: "user",
-                content: text,
-              },
-            ],
-            max_tokens: 1024,
-            temperature: 0,
-          }),
-        },
+    let lastError: unknown;
+    for (const constraints of attempts) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
+  };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    setVideoReady(false);
+    setFile(null);
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+      setPreviewUrl(null);
+    }
+
+    captureContextRef.current = {};
+
+    if (!window.isSecureContext) {
+      setCameraError(
+        "කැමරාව HTTPS හෝ localhost මත පමණක් ක්‍රියා කරයි. ආරක්ෂිත සම්බන්ධතාවක් භාවිතා කරන්න.",
       );
+      return;
+    }
 
-      const data = await response.json();
-      const aiContent = data?.choices?.[0]?.message?.content;
-      const cleaned = aiContent ? aiContent.trim() : text.trim();
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("මෙම බ්‍රවුසරය කැමරා ප්‍රවේශයට සහය නොදක්වයි.");
+      return;
+    }
 
-      return cleaned
-        .replace(/^Output:\s*/i, "")
-        .replace(/^"|"$/g, "")
-        .trim();
-    } catch (error) {
-      // OpenAI සර්වර් වල අවුලක් වුණොත් ඇප් එක හිර නොවී, ක්‍රෑෂ් නොවී මුල් ටෙක්ස්ට් එකම සේව් වෙන්න සලස්වයි
-      console.error("OpenAI Redaction Fallback Error:", error);
-      return text.trim();
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          captureContextRef.current.latitude = pos.coords.latitude;
+          captureContextRef.current.longitude = pos.coords.longitude;
+        },
+        () => {
+          /* GPS denied — optional */
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      );
+    }
+
+    setCameraActive(true);
+
+    try {
+      const stream = await requestCameraStream();
+      streamRef.current = stream;
+      const attached = await attachStreamToVideo(stream);
+      if (!attached) {
+        throw new Error("Video not ready");
+      }
+    } catch (err) {
+      console.error("Camera start failed:", err);
+      stopCamera();
+      setCameraError(
+        "කැමරාව ආරම්භ කළ නොහැක. බ්‍රවුසරයේ කැමරා අවසරය ලබා දී නැවත උත්සාහ කරන්න.",
+      );
     }
   };
 
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !videoReady || video.videoWidth === 0) {
+      setCameraError(
+        "කැමරාව තවම සූදානම් නැත. ක්ෂණයක් රැඳී නැවත ඡායාරූපය ගන්න.",
+      );
+      return;
+    }
+
+    setCameraError(null);
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setCameraError("ඡායාරූපය සැකසීමට නොහැකි විය. නැවත උත්සාහ කරන්න.");
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0);
+    captureContextRef.current.dateTime = new Date().toISOString();
+    if (!captureContextRef.current.software) {
+      captureContextRef.current.software = "Device Camera";
+    }
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setCameraError("ඡායාරූපය සැකසීමට නොහැකි විය. නැවත උත්සාහ කරන්න.");
+          return;
+        }
+        const captured = new File([blob], `evidence_${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+        setFile(captured);
+        const url = URL.createObjectURL(blob);
+        if (previewUrlRef.current) {
+          URL.revokeObjectURL(previewUrlRef.current);
+        }
+        previewUrlRef.current = url;
+        setPreviewUrl(url);
+        stopCamera();
+      },
+      "image/jpeg",
+      0.92,
+    );
+  };
+
+  const clearPhoto = () => {
+    setFile(null);
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+    captureContextRef.current = {};
+    stopCamera();
+  };
+
+  const extractExifMetadata = async (
+    imageFile: File,
+    captureFallback?: EvidenceExifPayload,
+  ): Promise<string | undefined> => {
+    const payload: EvidenceExifPayload = {};
+
+    try {
+      const exif = await exifr.parse(imageFile, {
+        gps: true,
+        tiff: true,
+        exif: true,
+      });
+
+      if (exif) {
+        if (exif.latitude != null && exif.longitude != null) {
+          payload.latitude = Number(exif.latitude);
+          payload.longitude = Number(exif.longitude);
+        }
+
+        const rawDate =
+          exif.DateTimeOriginal ?? exif.CreateDate ?? exif.ModifyDate;
+        if (rawDate) {
+          payload.dateTime =
+            rawDate instanceof Date
+              ? rawDate.toISOString()
+              : String(rawDate);
+        }
+
+        const deviceInfo = exif.Software ?? exif.Make;
+        if (deviceInfo) {
+          payload.software = String(deviceInfo);
+        }
+      }
+    } catch {
+      /* No EXIF in file — common for live camera captures */
+    }
+
+    if (captureFallback) {
+      if (payload.latitude == null && captureFallback.latitude != null) {
+        payload.latitude = captureFallback.latitude;
+      }
+      if (payload.longitude == null && captureFallback.longitude != null) {
+        payload.longitude = captureFallback.longitude;
+      }
+      if (!payload.dateTime && captureFallback.dateTime) {
+        payload.dateTime = captureFallback.dateTime;
+      }
+      if (!payload.software && captureFallback.software) {
+        payload.software = captureFallback.software;
+      }
+    }
+
+    if (
+      payload.latitude == null &&
+      payload.longitude == null &&
+      !payload.dateTime &&
+      !payload.software
+    ) {
+      return undefined;
+    }
+
+    return JSON.stringify(payload);
+  };
+
+  const generateCaseKey = () =>
+    Math.random().toString(36).substring(2, 10).toUpperCase();
+
   // ─── PGP Encryption ───────────────────────────────────────────────────────
   const PUBLIC_KEY = `-----BEGIN PGP PUBLIC KEY BLOCK-----
- 
+
 xjMEagbCVhYJKwYBBAHaRw8BAQdAG/Suu3AI5UB2QMM/ZMFxuQUvlfGBaG7p
 Bh4sz8VsE4rNIENJRCBJbnZlc3RpZ2F0b3IgPGNpZEBwb2xpY2UubGs+wsAT
 BBMWCgCFBYJqBsJWAwsJBwkQbTZcphrq0OZFFAAAAAAAHAAgc2FsdEBub3Rh
@@ -133,7 +327,7 @@ mGyXFZPq566yTQs=
     return encrypted as string;
   };
 
-  // ─── Metadata strip (removes EXIF from images) ────────────────────────────
+  // ─── Metadata strip (removes ALL EXIF from image bytes before upload) ─────
   const stripMetadata = (originalFile: File): Promise<File> =>
     new Promise((resolve) => {
       if (!originalFile.type.startsWith("image/")) {
@@ -150,19 +344,27 @@ mGyXFZPq566yTQs=
         if (ctx) {
           ctx.drawImage(img, 0, 0);
           canvas.toBlob(
-            (blob) =>
+            (blob) => {
+              URL.revokeObjectURL(url);
               resolve(
                 blob
                   ? new File([blob], "secure_evidence.jpg", {
                       type: "image/jpeg",
                     })
                   : originalFile,
-              ),
+              );
+            },
             "image/jpeg",
             0.9,
           );
+        } else {
+          URL.revokeObjectURL(url);
+          resolve(originalFile);
         }
+      };
+      img.onerror = () => {
         URL.revokeObjectURL(url);
+        resolve(originalFile);
       };
       img.src = url;
     });
@@ -176,13 +378,13 @@ SECURE-REPORT: DIGITAL EVIDENCE RECEIPT
 ===================================================
 මෙම ලේඛනය ඔබගේ පැමිණිල්ලේ ඩිජිටල් සාක්ෂියයි. මෙය සුරක්ෂිතව තබාගන්න.
 
-[1] රහස්‍ය අංකය (CASE KEY):
+ රහස්‍ය අංකය (CASE KEY):
 ${receiptData.caseKey}
 
-[2] බ්ලොක්චේන් සාක්ෂිය (BLOCKCHAIN SHA-256 HASH):
+ බ්ලොක්චේන් සාක්ෂිය (BLOCKCHAIN SHA-256 HASH):
 ${receiptData.hash}
 
-[3] සංකේතනය කළ පණිවිඩය (PGP ENCRYPTED MESSAGE):
+ සංකේතනය කළ පණිවිඩය (PGP ENCRYPTED MESSAGE):
 ${receiptData.pgpText}
 
 ===================================================
@@ -208,14 +410,21 @@ ${receiptData.pgpText}
 
     const newCaseKey = generateCaseKey();
     let evidencePath = undefined;
+    let fileMetadataForDB: string | undefined;
 
     try {
       // Step 1 — PII redaction
       setStatusMessage("AI මගින් පෞද්ගලික දත්ත (PII) පරික්ෂා කරමින් පවතී...");
       const safeDescription = await redactPIIWithAI(description);
 
-      // Step 2 — Metadata strip + upload via Convex
+      // Step 2 — Extract EXIF (DB only) → strip file → upload stripped bytes
       if (file) {
+        setStatusMessage("ඡායාරූපයේ Metadata කියවමින් පවතී...");
+        fileMetadataForDB = await extractExifMetadata(
+          file,
+          captureContextRef.current,
+        );
+
         setStatusMessage("සාක්ෂි ගොනුවේ Metadata මකා දමමින් පවතී...");
         const cleanFile = await stripMetadata(file);
 
@@ -259,11 +468,12 @@ ${receiptData.pgpText}
         case_key: newCaseKey,
         description: encryptedDescription,
         evidence_path: evidencePath,
+        metadata: fileMetadataForDB,
       });
 
       setSuccessKey(newCaseKey);
       setDescription("");
-      setFile(null);
+      clearPhoto();
     } catch (err: any) {
       setError(err.message || "දෝෂයක් මතු විය. නැවත උත්සාහ කරන්න.");
       console.error(err);
@@ -387,21 +597,85 @@ ${receiptData.pgpText}
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  සාක්ෂි (ඡායාරූප):
+                  සාක්ෂි (ඡායාරූප — කැමරාව පමණි):
                 </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setFile(e.target.files ? e.target.files[0] : null)
-                  }
-                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                {file && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    ✓ {file.name} — EXIF metadata ඉවත් කර ආරක්ෂිතව යවනු ලැබේ
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`w-full rounded-lg border border-slate-300 bg-black aspect-video object-cover ${
+                      cameraActive ? "block" : "hidden"
+                    }`}
+                  />
+
+                  {cameraActive ? (
+                    <div className="space-y-3">
+                      {!videoReady && (
+                        <p className="text-xs text-blue-600 text-center animate-pulse">
+                          කැමරාව සූදානම් වෙමින් පවතී...
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          disabled={!videoReady}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors"
+                        >
+                          📷 ඡායාරූපය ගන්න
+                        </button>
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-white transition-colors"
+                        >
+                          අවලංගු
+                        </button>
+                      </div>
+                    </div>
+                  ) : previewUrl ? (
+                    <div className="space-y-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewUrl}
+                        alt="සාක්ෂි පෙරදසුන"
+                        className="w-full rounded-lg border border-slate-300 aspect-video object-cover"
+                      />
+                      <p className="text-xs text-slate-500">
+                        ✓ ඡායාරූපය සූදානම් — ගොනුවෙන් EXIF මකා DB වෙනම තොරතුරු
+                        පමණක් යවනු ලැබේ
+                      </p>
+                      <button
+                        type="button"
+                        onClick={clearPhoto}
+                        className="w-full py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-white transition-colors"
+                      >
+                        ඡායාරූපය ඉවත් කර නැවත ගන්න
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors"
+                    >
+                      කැමරාව ආරම්භ කරන්න
+                    </button>
+                  )}
+
+                  {cameraError && (
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      {cameraError}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-slate-500">
+                    ගැලරිය හෝ ෆයල් පද්ධතියෙන් තෝරාගැනීම අවහිරයි. ඔබගේ
+                    උපාංගයේ කැමරාව පමණක් භාවිතා වේ.
                   </p>
-                )}
+                </div>
                 <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
                   ⚠️ ඡායාරූප සත්‍යතාව investigators විසින් manually verify කෙරේ.
                 </p>

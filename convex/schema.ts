@@ -9,5 +9,6 @@ export default defineSchema({
     status: v.optional(v.string()), // Pending, Investigating, Resolved
     investigator_reply: v.optional(v.string()),
     reporter_reply: v.optional(v.string()),
+    metadata: v.optional(v.string()),
   }).index("by_case_key", ["case_key"]),
 });

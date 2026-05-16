@@ -6,6 +6,70 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
+type EvidenceExifMetadata = {
+  latitude?: number;
+  longitude?: number;
+  dateTime?: string;
+  software?: string;
+};
+
+function EvidenceMetadataPanel({ metadataJson }: { metadataJson: string }) {
+  let meta: EvidenceExifMetadata;
+  try {
+    meta = JSON.parse(metadataJson) as EvidenceExifMetadata;
+  } catch {
+    return (
+      <p className="text-xs text-red-400">
+        Metadata කියවීමේ දෝෂයක් මතු විය.
+      </p>
+    );
+  }
+
+  const hasGps = meta.latitude != null && meta.longitude != null;
+  const hasDate = Boolean(meta.dateTime);
+  const hasSoftware = Boolean(meta.software);
+
+  if (!hasGps && !hasDate && !hasSoftware) {
+    return (
+      <p className="text-xs text-slate-500">
+        ඡායාරූපයේ EXIF තොරතුරු ලබාගත නොහැකි විය.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="text-sm text-slate-300 space-y-2 ml-6 list-disc">
+      {hasDate && (
+        <li>
+          <strong>ලබාගත් දිනය හා වේලාව:</strong>{" "}
+          <span className="text-slate-400 ml-1">
+            {new Date(meta.dateTime!).toLocaleString()}
+          </span>
+        </li>
+      )}
+      {hasGps && (
+        <li>
+          <strong>ස්ථානය (GPS):</strong>{" "}
+          <a
+            href={`https://www.google.com/maps?q=${meta.latitude},${meta.longitude}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-400 hover:underline ml-1"
+          >
+            {meta.latitude}, {meta.longitude} (Maps වලින් බලන්න)
+          </a>
+        </li>
+      )}
+      {hasSoftware && (
+        <li>
+          <strong>උපාංගය / මෘදුකාංගය:</strong>{" "}
+          <span className="text-slate-400 ml-1">{meta.software}</span>
+        </li>
+      )}
+    </ul>
+  );
+}
+
 // සාක්ෂි (Evidence) වල URL එක ගන්න හදපු පොඩි Component එකක්
 function EvidenceLink({ storageId }: { storageId: string }) {
   const url = useQuery(api.complaints.getImageUrl, {
@@ -39,11 +103,11 @@ export default function AdminDashboard() {
   const [decryptedTexts, setDecryptedTexts] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
 
-  // යතුරු නිර්මාණය සඳහා
+  // key create
   const [generatedPubKey, setGeneratedPubKey] = useState("");
   const [generatedPrivKey, setGeneratedPrivKey] = useState("");
 
-  // Toast Notification සඳහා
+  // Toast Notification 
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error";
@@ -56,7 +120,7 @@ export default function AdminDashboard() {
     }, 3000);
   };
 
-  // යතුරු යුගලයක් නිර්මාණය කිරීම
+  // key
   const generateKeys = async () => {
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "ecc",
@@ -72,15 +136,34 @@ export default function AdminDashboard() {
   const handleDecrypt = async () => {
     setError(null);
     try {
-      let keyString = privateKeyInput.trim();
+      let keyString = privateKeyInput.replace(/\r\n/g, "\n").trim();
+
+      if (!keyString) {
+        setError(
+          "Private Key එක හිස්ය. කරුණාකර යතුරු නිර්මාණය කර ලැබූ Private Key එක මුළුමනින්ම අලවන්න.",
+        );
+        return;
+      }
+
+      if (keyString.includes("-----BEGIN PGP PUBLIC KEY BLOCK-----")) {
+        setError(
+          "මෙය Public Key එකකි. Decrypt කිරීමට Private Key (රතු පෙට්ටියේ ඇති යතුර) භාවිතා කරන්න.",
+        );
+        return;
+      }
 
       if (!keyString.includes("-----BEGIN PGP PRIVATE KEY BLOCK-----")) {
         keyString = `-----BEGIN PGP PRIVATE KEY BLOCK-----\n\n${keyString}\n-----END PGP PRIVATE KEY BLOCK-----`;
       }
 
-      const privKey = await openpgp.readPrivateKey({
-        armoredKey: keyString,
-      });
+      const key = await openpgp.readKey({ armoredKey: keyString });
+      if (!key.isPrivate()) {
+        setError(
+          "මෙම යතුර Private Key එකක් නොවේ. කරුණාකර Private Key එක නැවත පිටපත් කර අලවන්න.",
+        );
+        return;
+      }
+      const privKey = key;
 
       const newDecrypted: any = {};
       let successCount = 0;
@@ -286,6 +369,16 @@ export default function AdminDashboard() {
               {comp.evidence_path && (
                 <div className="mb-4 text-sm">
                   <EvidenceLink storageId={comp.evidence_path} />
+                </div>
+              )}
+
+              {/* 💡 අලුතින් එකතු කළ Metadata පෙන්වන කොටස */}
+              {comp.metadata && (
+                <div className="mb-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                  <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
+                    <span>📍</span> ඡායාරූපයේ තොරතුරු (EXIF Metadata)
+                  </h3>
+                  <EvidenceMetadataPanel metadataJson={comp.metadata} />
                 </div>
               )}
 

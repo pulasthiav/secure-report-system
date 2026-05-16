@@ -57,6 +57,7 @@ WHAT TO REDACT (replace with [REDACTED]):
 - Any detail that could identify WHO IS REPORTING or WHERE THEY ARE
 
 WHAT TO KEEP (do NOT redact):
+- CRITICAL: NEVER REDACT THE NAME OF THE ACCUSED / CRIMINAL (the bad guy). For example, if input is "ravi minihek maranawa" or "kamal allas gannawa", RAVI and KAMAL are criminals. DO NOT REDACT THEM. Investigators must know who committed the crime.
 - The ACCUSED person's name → e.g. "anura kiyla amathi", "kapila" (criminal being reported)
 - The VICTIM (if not the reporter) → e.g. "manussayekta", "lamayata"
 - Crime location → e.g. "maharagama boc", "colombo fort station" (where crime happened)

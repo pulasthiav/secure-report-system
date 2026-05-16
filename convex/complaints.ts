@@ -22,14 +22,33 @@ export const createComplaint = mutation({
 });
 
 // 2. ෆොටෝ අප්ලෝඩ් කරන්න URL එකක් ගන්න
-export const generateUploadUrl = mutation(async (ctx) => {
-  return await ctx.storage.generateUploadUrl();
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
 });
 
 // 3. Admin ට ඔක්කොම පැමිණිලි බලන්න
 export const getAllComplaints = query({
+  args: {},
   handler: async (ctx) => {
     return await ctx.db.query("complaints").order("desc").collect();
+  },
+});
+
+// 3.5 මහජන නිරීක්ෂණ පුවරුවට රහසිගත අන්තර්ගතය නොමැති log list එකක්
+export const getPublicComplaintLogs = query({
+  args: {},
+  handler: async (ctx) => {
+    const complaints = await ctx.db.query("complaints").order("desc").collect();
+
+    return complaints.map((complaint) => ({
+      _id: complaint._id,
+      _creationTime: complaint._creationTime,
+      case_key: complaint.case_key,
+      status: complaint.status,
+    }));
   },
 });
 

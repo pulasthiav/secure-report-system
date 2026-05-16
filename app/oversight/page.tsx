@@ -9,7 +9,7 @@ import { getOversightStatusLabel } from "../../translations";
 export default function OversightDashboard() {
   const t = useTranslations().oversight;
   const { language } = useLanguage();
-  const logs = useQuery(api.complaints.getAllComplaints);
+  const logs = useQuery(api.complaints.getPublicComplaintLogs);
   const isLoading = logs === undefined;
 
   const formatDate = (timestamp: number) =>

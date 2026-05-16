@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import * as openpgp from "openpgp";
@@ -80,7 +80,7 @@ function isComplaintUnlocked(
 ): boolean {
   const decrypted = decryptedTexts[complaintId];
   if (!decrypted) return false;
-  if (decrypted.includes("⚠️")) return false;
+  if (decrypted.includes("ΓÜá∩╕Å")) return false;
   if (decrypted.includes("BEGIN PGP MESSAGE")) return false;
   return true;
 }
@@ -92,7 +92,7 @@ function LockedEvidencePlaceholder({ message }: { message: string }) {
       role="status"
       aria-live="polite"
     >
-      <p className="text-sm text-red-300 font-medium">🔒 {message}</p>
+      <p className="text-sm text-red-300 font-medium">≡ƒöÆ {message}</p>
     </div>
   );
 }
@@ -135,7 +135,7 @@ function EvidenceImage({
         rel="noreferrer"
         className="text-blue-400 hover:underline text-sm inline-flex items-center gap-1"
       >
-        📎 {linkText}
+        ≡ƒôÄ {linkText}
       </a>
     </div>
   );
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
 
   const getComplaintCategory = (compId: string, fallbackText: string) => {
     const decrypted = decryptedTexts[compId];
-    if (decrypted && !decrypted.includes("⚠️")) {
+    if (decrypted && !decrypted.includes("ΓÜá∩╕Å")) {
       return classifyFraudCategory(decrypted);
     }
     return classifyFraudCategory(fallbackText);
@@ -192,10 +192,10 @@ export default function AdminDashboard() {
 
   const getDescriptionPreview = (compId: string, encrypted: string) => {
     const decrypted = decryptedTexts[compId];
-    if (decrypted && !decrypted.includes("⚠️")) {
-      return decrypted.length > 80 ? `${decrypted.slice(0, 80)}…` : decrypted;
+    if (decrypted && !decrypted.includes("ΓÜá∩╕Å")) {
+      return decrypted.length > 80 ? `${decrypted.slice(0, 80)}ΓÇª` : decrypted;
     }
-    return encrypted.length > 48 ? `${encrypted.slice(0, 48)}…` : encrypted;
+    return encrypted.length > 48 ? `${encrypted.slice(0, 48)}ΓÇª` : encrypted;
   };
 
   const selectedComplaint = useMemo(
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
             newDecrypted[comp._id] = decrypted as string;
             successCount++;
           } catch {
-            newDecrypted[comp._id] = `⚠️ ${t.errorDecryptOldKey}`;
+            newDecrypted[comp._id] = `ΓÜá∩╕Å ${t.errorDecryptOldKey}`;
           }
         } else {
           newDecrypted[comp._id] = comp.description;
@@ -317,9 +317,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 p-4 text-slate-200 sm:p-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
+    <div className="min-h-screen bg-slate-900 text-slate-200 p-8 relative pt-20">
       {toast && (
         <div className="fixed top-6 right-6 z-50 animate-fade-in transition-all duration-300">
           <div
@@ -331,11 +329,11 @@ export default function AdminDashboard() {
           >
             {toast.type === "success" ? (
               <span className="flex items-center justify-center w-6 h-6 bg-emerald-500/20 rounded-full text-emerald-400">
-                ✓
+                Γ£ô
               </span>
             ) : (
               <span className="flex items-center justify-center w-6 h-6 bg-red-500/20 rounded-full text-red-400">
-                ✕
+                Γ£ò
               </span>
             )}
             {toast.message}
@@ -343,20 +341,12 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-6xl space-y-8 pt-8">
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/90 p-6 shadow-2xl shadow-black/30 backdrop-blur">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-blue-400">
-            SecureReport System
-          </p>
-          <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
-            🛡️ {t.title}
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-            Investigator Admin Dashboard
-          </p>
-        </div>
+      <div className="max-w-6xl mx-auto space-y-8 pt-12">
+        <h1 className="text-3xl font-bold text-white border-b border-slate-700 pb-4">
+          ≡ƒ¢í∩╕Å {t.title}
+        </h1>
 
-        <div className="rounded-2xl border border-slate-700 bg-[#1e293b] p-6 shadow-2xl shadow-black/30">
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
           <h2 className="text-xl font-bold text-blue-400 mb-2">
             {t.keyGeneratorTitle}
           </h2>
@@ -395,7 +385,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-700 bg-[#1e293b] p-6 shadow-2xl shadow-black/30">
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
           <h2 className="text-xl font-bold text-emerald-400 mb-2">
             {t.decryptTitle}
           </h2>
@@ -411,7 +401,7 @@ export default function AdminDashboard() {
             onClick={() => void handleDecrypt()}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded font-bold w-full transition-colors"
           >
-            🔓 {t.decryptButton}
+            ≡ƒöô {t.decryptButton}
           </button>
           {error && (
             <p className="text-red-400 mt-3 text-sm font-bold">{error}</p>
@@ -520,7 +510,7 @@ export default function AdminDashboard() {
                   className="text-slate-400 hover:text-white text-2xl leading-none px-2"
                   aria-label="Close"
                 >
-                  ×
+                  ├ù
                 </button>
               </div>
 
@@ -538,7 +528,7 @@ export default function AdminDashboard() {
                   {decryptedTexts[selectedComplaint._id] ? (
                     <div
                       className={`p-4 rounded font-medium whitespace-pre-wrap ${
-                        decryptedTexts[selectedComplaint._id].includes("⚠️")
+                        decryptedTexts[selectedComplaint._id].includes("ΓÜá∩╕Å")
                           ? "bg-red-950/50 text-red-400 border border-red-900"
                           : "bg-slate-900 text-green-400 border border-slate-700"
                       }`}
@@ -593,7 +583,7 @@ export default function AdminDashboard() {
                       {selectedComplaint.metadata ? (
                         <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                           <h3 className="text-sm font-bold text-blue-300 mb-2 flex items-center gap-2">
-                            <span>📍</span> {t.exifPanelTitle}
+                            <span>≡ƒôì</span> {t.exifPanelTitle}
                           </h3>
                           <EvidenceMetadataPanel
                             metadata={selectedComplaint.metadata}
@@ -616,13 +606,13 @@ export default function AdminDashboard() {
                 )}
 
                 {decryptedTexts[selectedComplaint._id] &&
-                !decryptedTexts[selectedComplaint._id].includes("⚠️") &&
+                !decryptedTexts[selectedComplaint._id].includes("ΓÜá∩╕Å") &&
                 !decryptedTexts[selectedComplaint._id].includes(
                   "BEGIN PGP MESSAGE",
                 ) ? (
                   <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
                     <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
-                      <span className="text-blue-500">✍️</span>{" "}
+                      <span className="text-blue-500">Γ£ì∩╕Å</span>{" "}
                       {t.updateStatusTitle}
                     </h3>
                     <form
@@ -666,7 +656,7 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50 text-center">
                     <p className="text-xs text-red-400 font-medium">
-                      🔒 {t.lockedMessage}
+                      ≡ƒöÆ {t.lockedMessage}
                     </p>
                   </div>
                 )}
@@ -677,7 +667,7 @@ export default function AdminDashboard() {
 
         </div>
 
-        <div className="rounded-2xl border border-slate-700 bg-[#1e293b] p-6 shadow-2xl shadow-black/30">
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
           <h2 className="text-xl font-bold text-white mb-4">{t.auditLogTitle}</h2>
           <p className="text-slate-500 text-sm">{t.auditLogEmpty}</p>
         </div>

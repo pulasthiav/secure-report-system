@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { LockKeyhole, Shield, ShieldCheck } from "lucide-react";
 import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api"; // Convex API α╢æα╢Ü Import α╢Üα╢╗α╢£α╢¡α╖èα╢¡α╖Å
@@ -537,96 +536,20 @@ mGyXFZPq566yTQs=
     }
   };
 
-  const navLinks = ["About", "Security", "Oversight", "Contact"];
-
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 pt-20">
+      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <h1 className="text-3xl font-bold text-slate-800 mb-2 text-center tracking-tight">
+          {t.title}
+        </h1>
+        <p className="text-sm text-slate-500 mb-8 text-center">{t.subtitle}</p>
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10">
-        <nav className="flex items-center justify-between gap-6 rounded-full border border-slate-700 bg-slate-900/90 px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow-sm">
-              <Shield className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight text-white">SecureReport</span>
-          </Link>
-          <div className="hidden items-center gap-8 rounded-full border border-slate-700 bg-slate-950/70 px-8 py-3 text-sm font-semibold text-slate-300 md:flex">
-            {navLinks.map((link) => (
-              <Link key={link} href={link === "Oversight" ? "/oversight" : `#${link.toLowerCase()}`} className="transition-colors hover:text-emerald-400">{link}</Link>
-            ))}
-          </div>
-        </nav>
-
-        <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:py-24">
-          <div className="max-w-2xl">
-            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-bold text-blue-300 shadow-sm">
-              <ShieldCheck className="h-4 w-4" />
-              Government-grade encrypted reporting portal
-            </div>
-            <h1 className="text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">SecureReport System</h1>
-            <p className="mt-4 text-2xl font-bold text-emerald-400 sm:text-3xl">ආරක්ෂිත තොරතුරු වාර්තාකරණය</p>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
-              Submit sensitive reports through a protected channel using PGP encryption, automated AI identity redaction, metadata stripping, and public oversight safeguards designed for high-trust civic reporting.
-            </p>
-            <div className="mt-9 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Link href="#submit-report" className="inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-4 text-base font-extrabold text-white shadow-lg shadow-blue-950/30 transition-colors hover:bg-blue-700">
-                වාර්තාවක් යොමු කරන්න / Submit Report
-              </Link>
-              <Link href="/status" className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900 px-8 py-4 text-base font-bold text-slate-300 shadow-sm transition-colors hover:border-emerald-500 hover:text-emerald-400">
-                {t.linkCheckStatus}
-              </Link>
-            </div>
-          </div>
-          <div className="relative mx-auto w-full max-w-xl">
-            <div className="absolute -left-8 top-10 h-24 w-24 rounded-full bg-blue-500/20 blur-2xl" />
-            <div className="absolute -right-8 bottom-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl" />
-            <div className="relative overflow-hidden rounded-[2rem] border border-slate-700 bg-[#1e293b] p-5 shadow-2xl shadow-black/30">
-              <div className="rounded-[1.5rem] border border-slate-700 bg-slate-900 p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Secure Channel</p>
-                    <p className="mt-2 text-2xl font-black">PGP Vault</p>
-                  </div>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-500">
-                    <LockKeyhole className="h-7 w-7 text-slate-950" />
-                  </div>
-                </div>
-                <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-5">
-                  <div className="mb-5 flex items-center gap-3">
-                    <span className="h-3 w-3 rounded-full bg-emerald-400" />
-                    <span className="h-3 w-3 rounded-full bg-blue-300" />
-                    <span className="h-3 w-3 rounded-full bg-slate-500" />
-                  </div>
-                  <p className="text-sm leading-relaxed text-slate-300">
-                    This is an official and secure channel for the Sri Lanka Digital Oversight Department. Every report is securely encrypted and verified before processing. Your data is safe.
-                  </p>
-                  <div className="mt-8 grid grid-cols-3 gap-3">
-                    <div className="rounded-2xl border border-white/10 bg-slate-950 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">PGP</p><div className="mt-4 h-2 rounded-full bg-blue-300" /></div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI</p><div className="mt-4 h-2 rounded-full bg-emerald-300" /></div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">EXIF</p><div className="mt-4 h-2 rounded-full bg-white" /></div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute right-8 top-1/2 hidden -translate-y-1/2 rounded-full border border-slate-700 bg-slate-950 p-4 shadow-md sm:block">
-                <ShieldCheck className="h-10 w-10 text-emerald-400" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="submit-report" className="mx-auto w-full max-w-xl pb-20 pt-4">
-          <div className="w-full rounded-2xl border border-slate-700 bg-[#1e293b] p-8 shadow-2xl shadow-black/30">
-            <h2 className="text-3xl font-bold text-white mb-2 text-center tracking-tight">{t.title}</h2>
-            <p className="text-sm text-slate-400 mb-8 text-center">{t.subtitle}</p>
-
-            {successKey ? (
-          <div className="border border-emerald-500/40 bg-emerald-950/40 text-emerald-100 rounded-xl p-8 text-center">
+        {successKey ? (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-8 text-center">
             <h2 className="text-xl font-bold mb-3">{t.successTitle}</h2>
 
             {hasEvidence && (
-              <div className="mb-6 p-4 rounded-xl text-sm border-2 bg-amber-950/40 border-amber-500/40 text-amber-200">
+              <div className="mb-6 p-4 rounded-xl text-sm border-2 bg-amber-50 border-amber-300 text-amber-800">
                 <p className="font-bold mb-1">{t.photoVerifyTitle}</p>
                 <p>{t.photoVerifyBody}</p>
               </div>
@@ -654,7 +577,7 @@ mGyXFZPq566yTQs=
             </div>
 
             <p className="text-sm mb-4 mt-6">{t.caseKeyKeep}</p>
-            <div className="bg-slate-950 px-6 py-4 rounded-lg border-2 border-emerald-500/50 font-mono text-3xl font-bold tracking-[0.2em] text-emerald-300 shadow-inner mb-6">
+            <div className="bg-white px-6 py-4 rounded-lg border-2 border-emerald-400 font-mono text-3xl font-bold tracking-[0.2em] text-emerald-700 shadow-inner mb-6">
               {successKey}
             </div>
 
@@ -693,7 +616,7 @@ mGyXFZPq566yTQs=
                 setHasEvidence(false);
                 setReceiptData(null);
               }}
-              className="mt-4 text-sm text-emerald-400 underline font-medium"
+              className="mt-4 text-sm text-emerald-600 underline font-medium"
             >
               {t.newReport}
             </button>
@@ -702,7 +625,7 @@ mGyXFZPq566yTQs=
           <div className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                   {t.descriptionLabel}
                 </label>
                 <textarea
@@ -710,22 +633,22 @@ mGyXFZPq566yTQs=
                   rows={5}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-300"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-700"
                   placeholder={t.descriptionPlaceholder}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                   {t.evidenceLabel}
                 </label>
-                <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    className={`w-full rounded-lg border border-slate-600 bg-black aspect-video object-cover ${
+                    className={`w-full rounded-lg border border-slate-300 bg-black aspect-video object-cover ${
                       cameraActive ? "block" : "hidden"
                     }`}
                   />
@@ -733,7 +656,7 @@ mGyXFZPq566yTQs=
                   {cameraActive ? (
                     <div className="space-y-3">
                       {!videoReady && (
-                        <p className="text-xs text-blue-300 text-center animate-pulse">
+                        <p className="text-xs text-blue-600 text-center animate-pulse">
                           {t.cameraStarting}
                         </p>
                       )}
@@ -749,7 +672,7 @@ mGyXFZPq566yTQs=
                         <button
                           type="button"
                           onClick={stopCamera}
-                          className="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-colors"
+                          className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-white transition-colors"
                         >
                           {t.cancel}
                         </button>
@@ -761,13 +684,13 @@ mGyXFZPq566yTQs=
                       <img
                         src={previewUrl}
                         alt={t.evidencePreviewAlt}
-                        className="w-full rounded-lg border border-slate-600 aspect-video object-cover"
+                        className="w-full rounded-lg border border-slate-300 aspect-video object-cover"
                       />
                       <p className="text-xs text-slate-500">{t.photoReadyHint}</p>
                       <button
                         type="button"
                         onClick={clearPhoto}
-                        className="w-full py-2 rounded-lg border border-slate-600 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-colors"
+                        className="w-full py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-white transition-colors"
                       >
                         {t.removePhotoRetake}
                       </button>
@@ -783,20 +706,20 @@ mGyXFZPq566yTQs=
                   )}
 
                   {cameraError && (
-                    <p className="text-xs text-red-300 bg-red-950/40 border border-red-500/40 rounded-lg px-3 py-2">
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                       {cameraError}
                     </p>
                   )}
 
                   <p className="text-xs text-slate-500">{t.galleryDisabled}</p>
                 </div>
-                <p className="text-xs text-amber-200 mt-2 bg-amber-950/40 px-3 py-2 rounded-lg border border-amber-500/40">
+                <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
                   {t.photoDisclaimer}
                 </p>
               </div>
 
               {error && (
-                <div className="text-red-300 text-sm bg-red-950/40 p-4 rounded-lg border border-red-500/40">
+                <div className="text-red-600 text-sm bg-red-50 p-4 rounded-lg border border-red-200">
                   {error}
                 </div>
               )}
@@ -816,7 +739,7 @@ mGyXFZPq566yTQs=
               {statusMessage && (
                 <div className="flex items-center gap-2 justify-center">
                   <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                  <p className="text-xs text-blue-300 font-medium">
+                  <p className="text-xs text-blue-600 font-medium">
                     {statusMessage}
                   </p>
                 </div>
@@ -835,7 +758,7 @@ mGyXFZPq566yTQs=
               </div>
             </form>
 
-            <div className="pt-6 border-t border-slate-700">
+            <div className="pt-6 border-t border-slate-100">
               <Link
                 href="/oversight"
                 className="flex items-center justify-center w-full px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all active:scale-95 text-sm mt-3 mb-3"
@@ -844,7 +767,7 @@ mGyXFZPq566yTQs=
               </Link>
               <Link
                 href="/status"
-                className="flex items-center justify-center w-full px-6 py-3 bg-slate-950 border-2 border-slate-600 text-slate-300 font-bold rounded-xl hover:bg-slate-900/50 hover:border-slate-600 transition-all active:scale-95 text-sm"
+                className="flex items-center justify-center w-full px-6 py-3 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 text-sm"
               >
                 <svg
                   className="w-4 h-4 mr-2 text-slate-400"
@@ -864,9 +787,7 @@ mGyXFZPq566yTQs=
             </div>
           </div>
         )}
-          </div>
-        </section>
       </div>
-    </main>
+    </div>
   );
 }

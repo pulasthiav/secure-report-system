@@ -16,6 +16,72 @@ type EvidenceExifPayload = {
   software?: string;
 };
 
+const GEOLOCATION_FALLBACK_TIMEOUT_MS = 5000;
+
+function getBrowserGeolocation(
+  timeoutMs = GEOLOCATION_FALLBACK_TIMEOUT_MS,
+): Promise<{ latitude: number; longitude: number } | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    let settled = false;
+    const finish = (value: { latitude: number; longitude: number } | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      resolve(value);
+    };
+
+    const timer = window.setTimeout(() => finish(null), timeoutMs);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        finish({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+      },
+      () => finish(null),
+      {
+        enableHighAccuracy: true,
+        timeout: timeoutMs,
+        maximumAge: 60_000,
+      },
+    );
+  });
+}
+
+function hasGpsCoordinates(meta: EvidenceExifPayload | undefined): boolean {
+  return (
+    meta?.latitude != null &&
+    meta?.longitude != null &&
+    !Number.isNaN(meta.latitude) &&
+    !Number.isNaN(meta.longitude)
+  );
+}
+
+async function applyGeolocationFallback(
+  metadata: EvidenceExifPayload | undefined,
+): Promise<EvidenceExifPayload | undefined> {
+  if (hasGpsCoordinates(metadata)) {
+    return metadata;
+  }
+
+  const coords = await getBrowserGeolocation();
+  if (!coords) {
+    return metadata;
+  }
+
+  return {
+    ...(metadata ?? {}),
+    latitude: metadata?.latitude ?? coords.latitude,
+    longitude: metadata?.longitude ?? coords.longitude,
+  };
+}
+
 export default function Home() {
   const t = useTranslations().home;
   const [description, setDescription] = useState("");
@@ -420,6 +486,11 @@ ${receiptData.pgpText}
           file,
           captureContextRef.current,
         );
+
+        if (!hasGpsCoordinates(fileMetadataForDB)) {
+          setStatusMessage(t.statusGeolocationFallback);
+          fileMetadataForDB = await applyGeolocationFallback(fileMetadataForDB);
+        }
 
         setStatusMessage(t.statusStrippingMetadata);
         const cleanFile = await stripMetadata(file);

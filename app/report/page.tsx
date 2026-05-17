@@ -1,12 +1,15 @@
 ﻿"use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import Script from "next/script";
 import Link from "next/link";
 import * as openpgp from "openpgp";
 import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api"; // Convex API α╢æα╢Ü Import α╢Üα╢╗α╢£α╢¡α╖èα╢¡α╖Å
+import { api } from "../../convex/_generated/api";
 import { redactPIIWithAI } from "../actions/redact-pii";
+import { verifyBotProtection } from "../actions/verify-bot";
 import { useLanguage, useTranslations } from "../../components/LanguageContext";
+import type { Language } from "../../translations";
 import { classifyFraudCategory } from "../../lib/classifyFraudCategory";
 import { generateReceiptPdf } from "../../lib/generateReceiptPdf";
 import exifr from "exifr";
@@ -64,6 +67,13 @@ function hasGpsCoordinates(meta: EvidenceExifPayload | undefined): boolean {
   );
 }
 
+function getIpPrivacyGuardNotice(lang: Language, ip: string): string {
+  if (lang === "si") {
+    return ` රහස්‍යතා ආරක්ෂණය: ඔබගේ IP ලිපිනය ${ip} වේ. අපගේ Zero-Logs තාක්ෂණය මඟින් මෙම IP එක ස්වයංක්‍රීයවම ඉවත් කරයි (Scrub). මෙය කිසිසේත්ම අපගේ Convex ඩේටาබේස් හි තැන්පත් නොවේ.`;
+  }
+  return ` Privacy Guard: Your Public IP is ${ip}. Our Zero-Logs architecture automatically SCRUBS this IP. It is never transmitted or stored in our Convex database.`;
+}
+
 async function applyGeolocationFallback(
   metadata: EvidenceExifPayload | undefined,
 ): Promise<EvidenceExifPayload | undefined> {
@@ -86,16 +96,16 @@ async function applyGeolocationFallback(
 export default function ReportPage() {
   const { language } = useLanguage();
   const t = useTranslations().home;
+
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [successKey, setSuccessKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  const [hasEvidence, setHasEvidence] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
-  // α╢╗α╖Æα╖âα╖Æα╢ºα╖è α╢┤α╢¡ α╖âα╢│α╖äα╖Å α╢»α╢¡α╖èα╢¡ α╢£α╢╢α╢⌐α╖Å α╢Üα╖Æα╢╗α╖ôα╢╕α╢º
+  const [hasEvidence, setHasEvidence] = useState(false);
   const [receiptData, setReceiptData] = useState<{
     caseKey: string;
     hash: string;
@@ -118,6 +128,45 @@ export default function ReportPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const [userIp, setUserIp] = useState("Fetching...");
+
+  useEffect(() => {
+    (window as unknown as { onTurnstileSuccess?: (token: string) => void })
+      .onTurnstileSuccess = (token: string) => {
+      setTurnstileToken(token);
+    };
+    return () => {
+      delete (window as unknown as { onTurnstileSuccess?: (token: string) => void })
+        .onTurnstileSuccess;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPublicIp = async () => {
+      try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) {
+          throw new Error("IP lookup failed");
+        }
+        const data = (await response.json()) as { ip?: string };
+        if (!cancelled) {
+          setUserIp(data.ip?.trim() || "Unavailable");
+        }
+      } catch {
+        if (!cancelled) {
+          setUserIp("Unavailable");
+        }
+      }
+    };
+
+    void fetchPublicIp();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -220,7 +269,7 @@ export default function ReportPage() {
           captureContextRef.current.longitude = pos.coords.longitude;
         },
         () => {
-          /* GPS denied ΓÇö optional */
+          /* GPS denied */
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       );
@@ -319,14 +368,11 @@ export default function ReportPage() {
           exif.DateTimeOriginal ?? exif.CreateDate ?? exif.ModifyDate;
         if (rawDate) {
           payload.dateTime =
-            rawDate instanceof Date
-              ? rawDate.toISOString()
-              : String(rawDate);
+            rawDate instanceof Date ? rawDate.toISOString() : String(rawDate);
         }
-
       }
     } catch {
-      /* No EXIF in file ΓÇö common for live camera captures */
+      /* No EXIF */
     }
 
     if (captureFallback) {
@@ -355,9 +401,7 @@ export default function ReportPage() {
   const generateCaseKey = () =>
     Math.random().toString(36).substring(2, 10).toUpperCase();
 
-  // ΓöÇΓöÇΓöÇ PGP Encryption ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const PUBLIC_KEY = `-----BEGIN PGP PUBLIC KEY BLOCK-----
-
 xjMEagbCVhYJKwYBBAHaRw8BAQdAG/Suu3AI5UB2QMM/ZMFxuQUvlfGBaG7p
 Bh4sz8VsE4rNIENJRCBJbnZlc3RpZ2F0b3IgPGNpZEBwb2xpY2UubGs+wsAT
 BBMWCgCFBYJqBsJWAwsJBwkQbTZcphrq0OZFFAAAAAAAHAAgc2FsdEBub3Rh
@@ -384,7 +428,6 @@ mGyXFZPq566yTQs=
     return encrypted as string;
   };
 
-  // ΓöÇΓöÇΓöÇ Metadata strip (removes ALL EXIF from image bytes before upload) ΓöÇΓöÇΓöÇΓöÇΓöÇ
   const stripMetadata = (originalFile: File): Promise<File> =>
     new Promise((resolve) => {
       if (!originalFile.type.startsWith("image/")) {
@@ -428,7 +471,6 @@ mGyXFZPq566yTQs=
 
   const downloadReceipt = async () => {
     if (!receiptData || isDownloadingReceipt) return;
-
     setIsDownloadingReceipt(true);
     try {
       await generateReceiptPdf(language, {
@@ -447,22 +489,37 @@ mGyXFZPq566yTQs=
     }
   };
 
-  // ΓöÇΓöÇΓöÇ Form Submit ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!turnstileToken) {
+      setError("Please complete the security verification before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
+    setStatusMessage("Verifying security...");
+
+    const botCheck = await verifyBotProtection(turnstileToken);
+    if (!botCheck.success) {
+      setError(
+        botCheck.error ||
+          "Security verification failed. Please try again.",
+      );
+      setIsSubmitting(false);
+      setStatusMessage("");
+      return;
+    }
 
     const newCaseKey = generateCaseKey();
     let evidencePath = undefined;
     let fileMetadataForDB: EvidenceExifPayload | undefined;
 
     try {
-      // Step 1 ΓÇö PII redaction
       setStatusMessage(t.statusPiiRedacting);
       const safeDescription = await redactPIIWithAI(description);
 
-      // Step 2 ΓÇö Extract EXIF (DB only) ΓåÆ strip file ΓåÆ upload stripped bytes
       if (file) {
         setStatusMessage(t.statusReadingExif);
         fileMetadataForDB = await extractExifMetadata(
@@ -479,8 +536,6 @@ mGyXFZPq566yTQs=
         const cleanFile = await stripMetadata(file);
 
         setStatusMessage(t.statusUploadingEvidence);
-
-        // Convex Storage α╢æα╢Üα╢º α╢║α╖Éα╖Çα╖ôα╢╕
         const postUrl = await generateUploadUrl();
         const result = await fetch(postUrl, {
           method: "POST",
@@ -494,11 +549,9 @@ mGyXFZPq566yTQs=
         setHasEvidence(false);
       }
 
-      // Step 3 ΓÇö PGP encrypt
       setStatusMessage(t.statusEncrypting);
       const encryptedDescription = await encryptWithPGP(safeDescription);
 
-      // Step 3.5 ΓÇö Generate Immutable Hash & Set Receipt Data
       const blockchainHash = Array.from(
         crypto.getRandomValues(new Uint8Array(32)),
       )
@@ -514,9 +567,7 @@ mGyXFZPq566yTQs=
         status: "Pending",
       });
 
-      // Step 4 ΓÇö Save to Convex Database
       setStatusMessage(t.statusSubmitting);
-
       await createComplaint({
         case_key: newCaseKey,
         description: encryptedDescription,
@@ -538,6 +589,10 @@ mGyXFZPq566yTQs=
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        strategy="lazyOnload"
+      />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
 
@@ -557,215 +612,261 @@ mGyXFZPq566yTQs=
           </Link>
         </div>
 
-        <section id="submit-report" className="mx-auto w-full max-w-xl pb-20 pt-4">
+        {/* 🔒 Functional Form Section with IP Privacy Guard Integrated */}
+        <section
+          id="submit-report"
+          className="mx-auto w-full max-w-xl pb-20 pt-4"
+        >
           <div className="w-full rounded-2xl border border-slate-700 bg-[#1e293b] p-8 shadow-2xl shadow-black/30">
-            <h2 className="text-3xl font-bold text-white mb-2 text-center tracking-tight">{t.title}</h2>
-            <p className="text-sm text-slate-400 mb-8 text-center">{t.subtitle}</p>
+            <h2 className="text-3xl font-bold text-white mb-2 text-center tracking-tight">
+              {t.title}
+            </h2>
+            <p className="text-sm text-slate-400 mb-4 text-center">
+              {t.subtitle}
+            </p>
 
-            {successKey ? (
-          <div className="border border-emerald-500/40 bg-emerald-950/40 text-emerald-100 rounded-xl p-8 text-center">
-            <h2 className="text-xl font-bold mb-3">{t.successTitle}</h2>
-
-            {hasEvidence && (
-              <div className="mb-6 p-4 rounded-xl text-sm border-2 bg-amber-950/40 border-amber-500/40 text-amber-200">
-                <p className="font-bold mb-1">{t.photoVerifyTitle}</p>
-                <p>{t.photoVerifyBody}</p>
+            {!successKey && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-6 flex gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 shadow-inner shadow-emerald-950/20"
+              >
+                <span className="mt-1 inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" />
+                <p className="text-[11px] leading-relaxed text-emerald-100/95 sm:text-xs">
+                  {getIpPrivacyGuardNotice(language, userIp)}
+                </p>
               </div>
             )}
 
-            <div className="mt-4 p-4 bg-slate-900 rounded-xl border border-slate-700 text-left shadow-inner">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
-                  {t.blockchainVerified}
-                </p>
-              </div>
-              <p className="text-[9px] text-slate-400 mb-1 font-mono uppercase">
-                {t.immutableHashLabel}
-              </p>
-              <p className="text-[10px] font-mono text-slate-300 break-all leading-tight bg-black/30 p-2 rounded border border-white/5">
-                {receiptData?.hash}
-              </p>
-              <p className="text-[9px] text-slate-500 mt-2 italic">
-                {t.blockchainNote}
-              </p>
-            </div>
+            {successKey ? (
+              <div className="border border-emerald-500/40 bg-emerald-950/40 text-emerald-100 rounded-xl p-8 text-center">
+                <h2 className="text-xl font-bold mb-3">{t.successTitle}</h2>
 
-            <p className="text-sm mb-4 mt-6">{t.caseKeyKeep}</p>
-            <div className="bg-slate-950 px-6 py-4 rounded-lg border-2 border-emerald-500/50 font-mono text-3xl font-bold tracking-[0.2em] text-emerald-300 shadow-inner mb-6">
-              {successKey}
-            </div>
+                {hasEvidence && (
+                  <div className="mb-6 p-4 rounded-xl text-sm border-2 bg-amber-950/40 border-amber-500/40 text-amber-200">
+                    <p className="font-bold mb-1">{t.photoVerifyTitle}</p>
+                    <p>{t.photoVerifyBody}</p>
+                  </div>
+                )}
 
-            <button
-              type="button"
-              onClick={() => void downloadReceipt()}
-              disabled={isDownloadingReceipt}
-              className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              {isDownloadingReceipt ? t.submitting : t.downloadReceipt}
-            </button>
-
-            <Link
-              href="/status"
-              className="block w-full bg-slate-800 text-white text-center py-3 rounded-xl font-bold hover:bg-slate-900 transition-all shadow-md"
-            >
-              {t.checkStatus}
-            </Link>
-
-            <button
-              onClick={() => {
-                setSuccessKey(null);
-                setHasEvidence(false);
-                setReceiptData(null);
-              }}
-              className="mt-4 text-sm text-emerald-400 underline font-medium"
-            >
-              {t.newReport}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                  {t.descriptionLabel}
-                </label>
-                <textarea
-                  required
-                  rows={5}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-300"
-                  placeholder={t.descriptionPlaceholder}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                  {t.evidenceLabel}
-                </label>
-                <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={`w-full rounded-lg border border-slate-600 bg-black aspect-video object-cover ${
-                      cameraActive ? "block" : "hidden"
-                    }`}
-                  />
-
-                  {cameraActive ? (
-                    <div className="space-y-3">
-                      {!videoReady && (
-                        <p className="text-xs text-blue-300 text-center animate-pulse">
-                          {t.cameraStarting}
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={capturePhoto}
-                          disabled={!videoReady}
-                          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors"
-                        >
-                          {t.capturePhoto}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={stopCamera}
-                          className="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-colors"
-                        >
-                          {t.cancel}
-                        </button>
-                      </div>
-                    </div>
-                  ) : previewUrl ? (
-                    <div className="space-y-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={previewUrl}
-                        alt={t.evidencePreviewAlt}
-                        className="w-full rounded-lg border border-slate-600 aspect-video object-cover"
-                      />
-                      <p className="text-xs text-slate-500">{t.photoReadyHint}</p>
-                      <button
-                        type="button"
-                        onClick={clearPhoto}
-                        className="w-full py-2 rounded-lg border border-slate-600 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-colors"
-                      >
-                        {t.removePhotoRetake}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startCamera}
-                      className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors"
-                    >
-                      {t.startCamera}
-                    </button>
-                  )}
-
-                  {cameraError && (
-                    <p className="text-xs text-red-300 bg-red-950/40 border border-red-500/40 rounded-lg px-3 py-2">
-                      {cameraError}
+                <div className="mt-4 p-4 bg-slate-900 rounded-xl border border-slate-700 text-left shadow-inner">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                      {t.blockchainVerified}
                     </p>
-                  )}
-
-                  <p className="text-xs text-slate-500">{t.galleryDisabled}</p>
-                </div>
-                <p className="text-xs text-amber-200 mt-2 bg-amber-950/40 px-3 py-2 rounded-lg border border-amber-500/40">
-                  {t.photoDisclaimer}
-                </p>
-              </div>
-
-              {error && (
-                <div className="text-red-300 text-sm bg-red-950/40 p-4 rounded-lg border border-red-500/40">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting || !description.trim()}
-                className={`w-full py-4 px-4 rounded-xl text-white font-bold text-lg shadow-md transition-all ${
-                  isSubmitting
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 active:scale-95"
-                }`}
-              >
-                {isSubmitting ? t.submitting : t.submit}
-              </button>
-
-              {statusMessage && (
-                <div className="flex items-center gap-2 justify-center">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                  <p className="text-xs text-blue-300 font-medium">
-                    {statusMessage}
+                  </div>
+                  <p className="text-[9px] text-slate-400 mb-1 font-mono uppercase">
+                    {t.immutableHashLabel}
+                  </p>
+                  <p className="text-[10px] font-mono text-slate-300 break-all leading-tight bg-black/30 p-2 rounded border border-white/5">
+                    {receiptData?.hash}
+                  </p>
+                  <p className="text-[9px] text-slate-500 mt-2 italic">
+                    {t.blockchainNote}
                   </p>
                 </div>
-              )}
 
-            </form>
-          </div>
-        )}
+                <p className="text-sm mb-4 mt-6">{t.caseKeyKeep}</p>
+                <div className="bg-slate-950 px-6 py-4 rounded-lg border-2 border-emerald-500/50 font-mono text-3xl font-bold tracking-[0.2em] text-emerald-300 shadow-inner mb-6">
+                  {successKey}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void downloadReceipt()}
+                  disabled={isDownloadingReceipt}
+                  className="w-full mb-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  {isDownloadingReceipt ? t.submitting : t.downloadReceipt}
+                </button>
+
+                <Link
+                  href="/status"
+                  className="block w-full bg-slate-800 text-white text-center py-3 rounded-xl font-bold hover:bg-slate-900 transition-all shadow-md"
+                >
+                  {t.checkStatus}
+                </Link>
+
+                <button
+                  onClick={() => {
+                    setSuccessKey(null);
+                    setHasEvidence(false);
+                    setReceiptData(null);
+                  }}
+                  className="mt-4 text-sm text-emerald-400 underline font-medium"
+                >
+                  {t.newReport}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">
+                      {t.descriptionLabel}
+                    </label>
+                    <textarea
+                      required
+                      rows={5}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-slate-100 placeholder-slate-500 transition-colors outline-none"
+                      placeholder={t.descriptionPlaceholder}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">
+                      {t.evidenceLabel}
+                    </label>
+                    <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full rounded-lg border border-slate-600 bg-black aspect-video object-cover ${
+                          cameraActive ? "block" : "hidden"
+                        }`}
+                      />
+
+                      {cameraActive ? (
+                        <div className="space-y-3">
+                          {!videoReady && (
+                            <p className="text-xs text-blue-300 text-center animate-pulse">
+                              {t.cameraStarting}
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={capturePhoto}
+                              disabled={!videoReady}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors"
+                            >
+                              {t.capturePhoto}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopCamera}
+                              className="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-colors"
+                            >
+                              {t.cancel}
+                            </button>
+                          </div>
+                        </div>
+                      ) : previewUrl ? (
+                        <div className="space-y-3">
+                          <img
+                            src={previewUrl}
+                            alt={t.evidencePreviewAlt}
+                            className="w-full rounded-lg border border-slate-600 aspect-video object-cover"
+                          />
+                          <p className="text-xs text-slate-500">
+                            {t.photoReadyHint}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={clearPhoto}
+                            className="w-full py-2 rounded-lg border border-slate-600 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-colors"
+                          >
+                            {t.removePhotoRetake}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors"
+                        >
+                          {t.startCamera}
+                        </button>
+                      )}
+
+                      {cameraError && (
+                        <p className="text-xs text-red-300 bg-red-950/40 border border-red-500/40 rounded-lg px-3 py-2">
+                          {cameraError}
+                        </p>
+                      )}
+
+                      <p className="text-xs text-slate-500">
+                        {t.galleryDisabled}
+                      </p>
+                    </div>
+                    <p className="text-xs text-amber-200 mt-2 bg-amber-950/40 px-3 py-2 rounded-lg border border-amber-500/40">
+                      {t.photoDisclaimer}
+                    </p>
+                  </div>
+
+                  {error && (
+                    <div className="text-red-300 text-sm bg-red-950/40 p-4 rounded-lg border border-red-500/40">
+                      {error}
+                    </div>
+                  )}
+
+                  {!successKey && (
+                    <div className="flex justify-center my-4">
+                      <div
+                        className="cf-turnstile"
+                        data-sitekey="1x00000000000000000000AA"
+                        data-theme="dark"
+                        data-callback="onTurnstileSuccess"
+                      />
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !description.trim()}
+                    className={`w-full py-4 px-4 rounded-xl text-white font-bold text-lg shadow-md transition-all ${
+                      isSubmitting
+                        ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700 active:scale-95"
+                    }`}
+                  >
+                    {isSubmitting ? t.submitting : t.submit}
+                  </button>
+
+                  {statusMessage && (
+                    <div className="flex items-center gap-2 justify-center">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+                      <p className="text-xs text-blue-300 font-medium">
+                        {statusMessage}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-center gap-3 pt-2 flex-wrap">
+                    <span className="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-3 py-1 rounded-full">
+                       PGP Encrypted
+                    </span>
+                    <span className="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-3 py-1 rounded-full">
+                       AI PII Redaction
+                    </span>
+                    <span className="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-3 py-1 rounded-full">
+                       EXIF Stripped
+                    </span>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </section>
       </div>

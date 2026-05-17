@@ -388,6 +388,7 @@ export default function ReportPage() {
     Math.random().toString(36).substring(2, 10).toUpperCase();
 
   const PUBLIC_KEY = `-----BEGIN PGP PUBLIC KEY BLOCK-----
+
 xjMEagbCVhYJKwYBBAHaRw8BAQdAG/Suu3AI5UB2QMM/ZMFxuQUvlfGBaG7p
 Bh4sz8VsE4rNIENJRCBJbnZlc3RpZ2F0b3IgPGNpZEBwb2xpY2UubGs+wsAT
 BBMWCgCFBYJqBsJWAwsJBwkQbTZcphrq0OZFFAAAAAAAHAAgc2FsdEBub3Rh
